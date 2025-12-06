@@ -4,10 +4,10 @@ ReazonSpeech モデルを使用したリアルタイム音声文字起こしシ�
 
 ## 対応モデル
 
-| モデル | アーキテクチャ | 状態 |
-|--------|---------------|------|
-| [reazonspeech-k2-v2](https://huggingface.co/reazon-research/reazonspeech-k2-v2) | sherpa-onnx (Transducer) | ✅ 実装済み |
-| [reazonspeech-espnet-v2](https://huggingface.co/reazon-research/reazonspeech-espnet-v2) | ESPnet | 🚧 実装予定 |
+| モデル | アーキテクチャ | パラメータ数 | 状態 |
+|--------|---------------|-------------|------|
+| [reazonspeech-k2-v2](https://huggingface.co/reazon-research/reazonspeech-k2-v2) | sherpa-onnx (Transducer) | 159M | ✅ 実装済み |
+| [reazonspeech-espnet-v2](https://huggingface.co/reazon-research/reazonspeech-espnet-v2) | ESPnet (Conformer-Transducer) | 119M | ✅ 実装済み |
 
 ## 要件定義
 
@@ -79,11 +79,14 @@ docker compose up k2-v2
 docker compose --profile cpu up k2-v2-cpu
 ```
 
-#### reazonspeech-espnet-v2（実装予定）
+#### reazonspeech-espnet-v2
 
 ```bash
-# GPU版
+# GPU版（推奨）
 docker compose up espnet-v2
+
+# CPU版
+docker compose --profile cpu up espnet-v2-cpu
 ```
 
 ### 使用方法
@@ -93,10 +96,10 @@ docker compose up espnet-v2
 3. マイクのアクセスを許可
 4. 「開始」ボタンをクリックして文字起こし開始
 
-| サービス | ポート |
-|---------|--------|
-| k2-v2 | 13780 |
-| espnet-v2 | 13781（予定） |
+| サービス | ポート | URL |
+|---------|--------|-----|
+| k2-v2 | 13780 | http://localhost:13780 |
+| espnet-v2 | 13781 | http://localhost:13781 |
 
 ### ローカル開発（Docker なし）
 
@@ -121,10 +124,19 @@ python -m src.main --device cpu  # または --device cuda
 
 ## 技術スタック
 
+### k2-v2
 - **音声認識**: [reazonspeech-k2-v2](https://huggingface.co/reazon-research/reazonspeech-k2-v2) + [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)
 - **VAD**: Silero VAD
 - **サーバー**: FastAPI + WebSocket
 - **フロントエンド**: HTML/JavaScript
+
+### espnet-v2
+- **音声認識**: [reazonspeech-espnet-v2](https://huggingface.co/reazon-research/reazonspeech-espnet-v2) + [ESPnet](https://github.com/espnet/espnet)
+- **VAD**: Silero VAD
+- **サーバー**: FastAPI + WebSocket
+- **フロントエンド**: HTML/JavaScript
+
+### 共通
 - **コンテナ**: Docker
 
 ## プロジェクト構成
@@ -148,16 +160,29 @@ reazonspeech-k2-v2_Docker/
     │       └── web/
     │           ├── index.html
     │           └── app.js
-    └── espnet-v2/               # reazonspeech-espnet-v2 用（実装予定）
-        └── .gitkeep
+    └── espnet-v2/               # reazonspeech-espnet-v2 用
+        ├── Dockerfile           # GPU版
+        ├── Dockerfile.cpu       # CPU版
+        ├── pyproject.toml
+        └── src/
+            ├── main.py          # エントリポイント
+            ├── server.py        # FastAPI WebSocket サーバー
+            ├── transcription_engine.py  # ESPnet ラッパー
+            ├── audio_processor.py
+            ├── vad.py           # Silero VAD
+            └── web/
+                ├── index.html
+                └── app.js
 ```
 
 ## ライセンス
 
-MIT License
+Apache License 2.0
 
 ## 参考
 
 - [ReazonSpeech 公式](https://research.reazon.jp/projects/ReazonSpeech/)
+- [ReazonSpeech GitHub](https://github.com/reazon-research/reazonspeech)
 - [sherpa-onnx GitHub](https://github.com/k2-fsa/sherpa-onnx)
+- [ESPnet GitHub](https://github.com/espnet/espnet)
 - [iuill/WhisperLiveKit](https://github.com/iuill/WhisperLiveKit)（ベースプロジェクト）

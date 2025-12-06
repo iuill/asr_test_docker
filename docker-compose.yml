@@ -41,27 +41,49 @@ services:
     restart: unless-stopped
 
   # =============================================================================
-  # reazonspeech-espnet-v2 (ESPnet based) - TODO: Implement later
+  # reazonspeech-espnet-v2 (ESPnet based)
   # =============================================================================
 
-  # espnet-v2:
-  #   build:
-  #     context: ./services/espnet-v2
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "13781:8000"
-  #   volumes:
-  #     - espnet-v2-model-cache:/root/.cache/huggingface
-  #   environment:
-  #     - HF_HOME=/root/.cache/huggingface
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: 1
-  #             capabilities: [gpu]
-  #   restart: unless-stopped
+  # GPU version
+  espnet-v2:
+    build:
+      context: ./services/espnet-v2
+      dockerfile: Dockerfile
+    ports:
+      - "13781:8000"
+    volumes:
+      - espnet-v2-model-cache:/root/.cache/huggingface
+      - espnet-v2-torch-cache:/root/.cache/torch
+    environment:
+      - HF_HOME=/root/.cache/huggingface
+      - TORCH_HOME=/root/.cache/torch
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # CPU version (alternative)
+  espnet-v2-cpu:
+    build:
+      context: ./services/espnet-v2
+      dockerfile: Dockerfile.cpu
+    ports:
+      - "13781:8000"
+    volumes:
+      - espnet-v2-model-cache:/root/.cache/huggingface
+      - espnet-v2-torch-cache:/root/.cache/torch
+    environment:
+      - HF_HOME=/root/.cache/huggingface
+      - TORCH_HOME=/root/.cache/torch
+    profiles:
+      - cpu
+    restart: unless-stopped
 
 volumes:
   k2-v2-model-cache:
+  espnet-v2-model-cache:
+  espnet-v2-torch-cache:
