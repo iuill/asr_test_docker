@@ -4,11 +4,11 @@ ReazonSpeech モデルを使用したリアルタイム音声文字起こしシ�
 
 ## 対応モデル
 
-| モデル | アーキテクチャ | パラメータ数 | 速度 | 状態 |
-|--------|---------------|-------------|------|------|
-| [reazonspeech-k2-v2](https://huggingface.co/reazon-research/reazonspeech-k2-v2) | sherpa-onnx (Transducer) | 159M | 高速 | ✅ 実装済み |
-| [reazonspeech-espnet-v2](https://huggingface.co/reazon-research/reazonspeech-espnet-v2) | ESPnet (Conformer-Transducer) | 119M | 標準 | ✅ 実装済み |
-| reazonspeech-espnet-v2-onnx | ESPnet ONNX (Conformer-Transducer) | 119M | 高速 | ✅ 実装済み |
+| モデル | アーキテクチャ | パラメータ数 | 速度 |
+|--------|---------------|-------------|------|
+| [reazonspeech-k2-v2](https://huggingface.co/reazon-research/reazonspeech-k2-v2) | sherpa-onnx (Transducer) | 159M | 高速 |
+| [reazonspeech-espnet-v2](https://huggingface.co/reazon-research/reazonspeech-espnet-v2) | ESPnet (Conformer-Transducer) | 119M | 標準 |
+| reazonspeech-espnet-v2-onnx | ESPnet ONNX (Conformer-Transducer) | 119M | 高速 |
 
 > **Note**: `espnet-v2-onnx` は `espnet-v2` と同じモデルをONNX形式に変換して使用するため、精度は同等で推論速度が向上します。
 
@@ -20,7 +20,7 @@ ReazonSpeech モデルを使用したリアルタイム音声文字起こしシ�
 |------|------|
 | 音声入力 | Windows マイクからのリアルタイム入力 |
 | 文字起こし | 発話後 1-2秒以内の擬似リアルタイム表示 |
-| モデル | reazonspeech-k2-v2（ONNX形式、sherpa-onnx経由） |
+| モデル | reazonspeech-k2-v2 / reazonspeech-espnet-v2 / reazonspeech-espnet-v2-onnx |
 | UI | Web UI（ブラウザベース） |
 | 実行環境 | Win11 + WSL2 + Docker |
 
@@ -34,7 +34,7 @@ ReazonSpeech モデルを使用したリアルタイム音声文字起こしシ�
 
 ### 技術的制約
 
-- reazonspeech-k2-v2 は**オフラインモデル**（約30秒上限）
+- 各モデルは**オフラインモデル**（約30秒上限）
 - リアルタイム認識には VAD + チャンク分割による擬似ストリーミングで実現
 
 ## アーキテクチャ
@@ -77,9 +77,11 @@ cd reazonspeech-k2-v2_Docker
 本プロジェクトは3層のベースイメージ構造を採用しており、2回目以降のビルドが高速化されます。
 
 ```
-Layer 1: common-base        ← PyTorch + 共通依存（最も時間がかかる）
-Layer 2: k2-v2-base         ← + sherpa-onnx / espnet
-Layer 3: アプリイメージ      ← ソースコードのみ（高速）
+Layer 1: common-base           ← PyTorch + 共通依存（最も時間がかかる）
+Layer 2: k2-v2-base            ← + sherpa-onnx
+         espnet-v2-base        ← + espnet
+         espnet-v2-onnx-base   ← + espnet_onnx
+Layer 3: アプリイメージ        ← ソースコードのみ（高速）
 ```
 
 #### 初回ビルド（ベースイメージの作成）
@@ -221,9 +223,11 @@ reazonspeech-k2-v2_Docker/
     │   ├── Dockerfile.espnet-v2-onnx-gpu  # espnet-onnx用（+ espnet_onnx）
     │   └── Dockerfile.espnet-v2-onnx-cpu
     ├── k2-v2/                   # reazonspeech-k2-v2 用
+    │   ├── .dockerignore
     │   ├── Dockerfile           # GPU版（ベースイメージ使用）
     │   ├── Dockerfile.cpu       # CPU版（ベースイメージ使用）
     │   ├── pyproject.toml
+    │   ├── requirements.txt
     │   └── src/
     │       ├── main.py          # エントリポイント
     │       ├── server.py        # FastAPI WebSocket サーバー
@@ -234,6 +238,7 @@ reazonspeech-k2-v2_Docker/
     │           ├── index.html
     │           └── app.js
     ├── espnet-v2/               # reazonspeech-espnet-v2 用
+    │   ├── .dockerignore
     │   ├── Dockerfile           # GPU版（ベースイメージ使用）
     │   ├── Dockerfile.cpu       # CPU版（ベースイメージ使用）
     │   ├── pyproject.toml
