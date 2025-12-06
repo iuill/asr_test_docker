@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
 
 from .audio_processor import parse_audio_message, float32_to_int16_bytes, resample_audio
 from .transcription_engine import GoogleSTTEngine, create_engine
@@ -49,10 +50,16 @@ async def lifespan(app: FastAPI):
     # Initialize transcription engine
     language_code = getattr(app.state, "language_code", "ja-JP")
     sample_rate = getattr(app.state, "sample_rate", 16000)
+    enable_punctuation = getattr(app.state, "enable_punctuation", True)
+    enable_diarization = getattr(app.state, "enable_diarization", False)
+    diarization_speaker_count = getattr(app.state, "diarization_speaker_count", 2)
 
     _engine = create_engine(
         language_code=language_code,
         sample_rate=sample_rate,
+        enable_punctuation=enable_punctuation,
+        enable_diarization=enable_diarization,
+        diarization_speaker_count=diarization_speaker_count,
     )
 
     logger.info("Google STT server ready")
@@ -117,6 +124,51 @@ async def get_info():
     }
 
 
+class SettingsRequest(BaseModel):
+    """Request model for settings update."""
+    enable_punctuation: Optional[bool] = None
+    enable_diarization: Optional[bool] = None
+    diarization_speaker_count: Optional[int] = None
+
+
+class SettingsResponse(BaseModel):
+    """Response model for settings."""
+    enable_punctuation: bool
+    enable_diarization: bool
+    diarization_speaker_count: int
+
+
+@app.get("/settings", response_model=SettingsResponse)
+async def get_settings():
+    """Get current settings."""
+    engine = get_engine()
+    return SettingsResponse(
+        enable_punctuation=engine.enable_punctuation,
+        enable_diarization=engine.enable_diarization,
+        diarization_speaker_count=engine.diarization_speaker_count,
+    )
+
+
+@app.post("/settings", response_model=SettingsResponse)
+async def update_settings(request: SettingsRequest):
+    """
+    Update recognition settings.
+
+    Note: Changes take effect on the next streaming session.
+    """
+    engine = get_engine()
+    engine.update_settings(
+        enable_punctuation=request.enable_punctuation,
+        enable_diarization=request.enable_diarization,
+        diarization_speaker_count=request.diarization_speaker_count,
+    )
+    return SettingsResponse(
+        enable_punctuation=engine.enable_punctuation,
+        enable_diarization=engine.enable_diarization,
+        diarization_speaker_count=engine.diarization_speaker_count,
+    )
+
+
 @app.websocket("/ws/asr")
 async def websocket_asr(websocket: WebSocket):
     """
@@ -154,13 +206,17 @@ async def websocket_asr(websocket: WebSocket):
             try:
                 while True:
                     result = await result_queue.get()
-                    await websocket.send_json({
+                    response = {
                         "type": "transcription",
                         "text": result.text,
                         "start_time": result.start_time,
                         "end_time": result.end_time,
                         "is_final": not result.is_partial,
-                    })
+                    }
+                    # Include speaker tag if diarization is enabled
+                    if result.speaker_tag > 0:
+                        response["speaker_tag"] = result.speaker_tag
+                    await websocket.send_json(response)
             except asyncio.CancelledError:
                 pass
             except Exception as e:
@@ -236,6 +292,9 @@ async def websocket_asr(websocket: WebSocket):
 def create_app(
     language_code: str = "ja-JP",
     sample_rate: int = 16000,
+    enable_punctuation: bool = True,
+    enable_diarization: bool = False,
+    diarization_speaker_count: int = 2,
 ) -> FastAPI:
     """
     Create and configure the FastAPI application.
@@ -243,11 +302,17 @@ def create_app(
     Args:
         language_code: Language code for recognition
         sample_rate: Audio sample rate
+        enable_punctuation: Enable automatic punctuation
+        enable_diarization: Enable speaker diarization
+        diarization_speaker_count: Expected number of speakers
 
     Returns:
         Configured FastAPI application
     """
     app.state.language_code = language_code
     app.state.sample_rate = sample_rate
+    app.state.enable_punctuation = enable_punctuation
+    app.state.enable_diarization = enable_diarization
+    app.state.diarization_speaker_count = diarization_speaker_count
 
     return app

@@ -42,8 +42,34 @@ def main():
         default=os.environ.get("LANGUAGE_CODE", "ja-JP"),
         help="Language code for recognition (default: ja-JP)",
     )
+    parser.add_argument(
+        "--enable-punctuation",
+        action="store_true",
+        default=os.environ.get("ENABLE_PUNCTUATION", "true").lower() == "true",
+        help="Enable automatic punctuation (default: true)",
+    )
+    parser.add_argument(
+        "--no-punctuation",
+        action="store_true",
+        help="Disable automatic punctuation",
+    )
+    parser.add_argument(
+        "--enable-diarization",
+        action="store_true",
+        default=os.environ.get("ENABLE_DIARIZATION", "false").lower() == "true",
+        help="Enable speaker diarization (default: false)",
+    )
+    parser.add_argument(
+        "--speaker-count",
+        type=int,
+        default=int(os.environ.get("DIARIZATION_SPEAKER_COUNT", "2")),
+        help="Expected number of speakers for diarization (default: 2)",
+    )
 
     args = parser.parse_args()
+
+    # Handle punctuation flag
+    enable_punctuation = args.enable_punctuation and not args.no_punctuation
 
     # Check for credentials
     creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
@@ -59,10 +85,15 @@ def main():
     app = create_app(
         language_code=args.language,
         sample_rate=16000,
+        enable_punctuation=enable_punctuation,
+        enable_diarization=args.enable_diarization,
+        diarization_speaker_count=args.speaker_count,
     )
 
     logger.info(f"Starting Google STT server on {args.host}:{args.port}")
     logger.info(f"Language: {args.language}")
+    logger.info(f"Punctuation: {enable_punctuation}")
+    logger.info(f"Diarization: {args.enable_diarization} (speakers: {args.speaker_count})")
 
     uvicorn.run(
         app,

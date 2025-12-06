@@ -30,7 +30,19 @@ class ASRClient {
         // Multi-model state
         this.models = [];
         this.selectedModels = new Set();  // Set of selected model IDs
-        this.connections = new Map();     // Map of modelId -> { ws, fullText, status }
+        this.connections = new Map();     // Map of modelId -> { ws, segments, status }
+
+        // Speaker colors for diarization
+        this.speakerColors = [
+            '#3b82f6', // blue
+            '#ef4444', // red
+            '#22c55e', // green
+            '#f59e0b', // amber
+            '#8b5cf6', // violet
+            '#ec4899', // pink
+            '#14b8a6', // teal
+            '#f97316', // orange
+        ];
 
         // Recording state
         this.isRecording = false;
@@ -196,6 +208,12 @@ class ASRClient {
                         : '待機中';
                     const statusClass = connection?.status || '';
 
+                    // Build initial transcription HTML
+                    let transcriptionHtml = '';
+                    if (connection) {
+                        transcriptionHtml = this.buildTranscriptionHtml(connection);
+                    }
+
                     return `
                         <div class="result-card" data-model="${modelId}">
                             <div class="result-header">
@@ -204,7 +222,7 @@ class ASRClient {
                             </div>
                             <div class="transcription-area">
                                 <div class="transcription-text" id="transcription-${modelId}">
-                                    ${connection?.fullText || ''}${connection?.partialText ? `<span class="partial">${connection.partialText}</span>` : ''}
+                                    ${transcriptionHtml}
                                 </div>
                             </div>
                         </div>
@@ -330,8 +348,9 @@ class ASRClient {
             // Initialize connection state
             this.connections.set(modelId, {
                 ws,
-                fullText: '',
+                segments: [],      // Array of { text, speakerTag }
                 partialText: '',
+                partialSpeaker: 0,
                 status: 'connecting'
             });
 
@@ -421,11 +440,19 @@ class ASRClient {
         console.log(`Received from ${modelId}:`, data);
 
         if (data.type === 'transcription') {
+            const speakerTag = data.speaker_tag || 0;
+
             if (data.is_final) {
-                conn.fullText += data.text;
+                // Add to segments with speaker info
+                conn.segments.push({
+                    text: data.text,
+                    speakerTag: speakerTag
+                });
                 conn.partialText = '';
+                conn.partialSpeaker = 0;
             } else {
                 conn.partialText = data.text;
+                conn.partialSpeaker = speakerTag;
             }
             this.updateTranscriptionForModel(modelId);
         } else if (data.type === 'error') {
@@ -438,6 +465,55 @@ class ASRClient {
     }
 
     /**
+     * Get color for a speaker tag
+     */
+    getSpeakerColor(speakerTag) {
+        if (speakerTag <= 0) return 'inherit';
+        return this.speakerColors[(speakerTag - 1) % this.speakerColors.length];
+    }
+
+    /**
+     * Get speaker label
+     */
+    getSpeakerLabel(speakerTag) {
+        if (speakerTag <= 0) return '';
+        return `話者${speakerTag}`;
+    }
+
+    /**
+     * Build HTML for transcription with speaker colors
+     */
+    buildTranscriptionHtml(conn) {
+        let html = '';
+        let lastSpeaker = 0;
+
+        for (const segment of conn.segments) {
+            if (segment.speakerTag > 0 && segment.speakerTag !== lastSpeaker) {
+                const color = this.getSpeakerColor(segment.speakerTag);
+                html += `<span class="speaker-label" style="color: ${color};">[${this.getSpeakerLabel(segment.speakerTag)}]</span> `;
+                lastSpeaker = segment.speakerTag;
+            }
+
+            if (segment.speakerTag > 0) {
+                const color = this.getSpeakerColor(segment.speakerTag);
+                html += `<span class="speaker-text" style="color: ${color};">${segment.text}</span>`;
+            } else {
+                html += segment.text;
+            }
+        }
+
+        if (conn.partialText) {
+            if (conn.partialSpeaker > 0 && conn.partialSpeaker !== lastSpeaker) {
+                const color = this.getSpeakerColor(conn.partialSpeaker);
+                html += `<span class="speaker-label" style="color: ${color};">[${this.getSpeakerLabel(conn.partialSpeaker)}]</span> `;
+            }
+            html += `<span class="partial">${conn.partialText}</span>`;
+        }
+
+        return html;
+    }
+
+    /**
      * Update transcription display for a specific model
      */
     updateTranscriptionForModel(modelId) {
@@ -446,7 +522,7 @@ class ASRClient {
 
         const el = document.getElementById(`transcription-${modelId}`);
         if (el) {
-            el.innerHTML = conn.fullText + (conn.partialText ? `<span class="partial">${conn.partialText}</span>` : '');
+            el.innerHTML = this.buildTranscriptionHtml(conn);
             el.scrollTop = el.scrollHeight;
         }
     }
@@ -539,8 +615,9 @@ class ASRClient {
      */
     clear() {
         for (const [modelId, conn] of this.connections) {
-            conn.fullText = '';
+            conn.segments = [];
             conn.partialText = '';
+            conn.partialSpeaker = 0;
         }
 
         // Also clear for non-connected but selected models

@@ -25,6 +25,7 @@ class TranscriptionResult:
     start_time: float
     end_time: float
     is_partial: bool
+    speaker_tag: int = 0  # Speaker tag for diarization (0 = unknown)
 
 
 class GoogleSTTEngine:
@@ -39,6 +40,9 @@ class GoogleSTTEngine:
         self,
         language_code: str = "ja-JP",
         sample_rate: int = 16000,
+        enable_punctuation: bool = True,
+        enable_diarization: bool = False,
+        diarization_speaker_count: int = 2,
     ):
         """
         Initialize the Google STT engine.
@@ -46,9 +50,15 @@ class GoogleSTTEngine:
         Args:
             language_code: Language code for recognition (default: ja-JP)
             sample_rate: Audio sample rate in Hz
+            enable_punctuation: Enable automatic punctuation
+            enable_diarization: Enable speaker diarization
+            diarization_speaker_count: Expected number of speakers (for diarization)
         """
         self.language_code = language_code
         self.sample_rate = sample_rate
+        self.enable_punctuation = enable_punctuation
+        self.enable_diarization = enable_diarization
+        self.diarization_speaker_count = diarization_speaker_count
         self._client: Optional[speech.SpeechClient] = None
         self._loaded = False
 
@@ -87,13 +97,23 @@ class GoogleSTTEngine:
 
     def get_streaming_config(self) -> speech.StreamingRecognitionConfig:
         """Get the streaming recognition configuration."""
+        # Base recognition config
         recognition_config = speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
             sample_rate_hertz=self.sample_rate,
             language_code=self.language_code,
-            enable_automatic_punctuation=True,
+            enable_automatic_punctuation=self.enable_punctuation,
             model="default",
         )
+
+        # Add diarization config if enabled
+        if self.enable_diarization:
+            diarization_config = speech.SpeakerDiarizationConfig(
+                enable_speaker_diarization=True,
+                min_speaker_count=1,
+                max_speaker_count=self.diarization_speaker_count,
+            )
+            recognition_config.diarization_config = diarization_config
 
         streaming_config = speech.StreamingRecognitionConfig(
             config=recognition_config,
@@ -140,6 +160,13 @@ class GoogleSTTEngine:
 
                     alternative = result.alternatives[0]
                     text = alternative.transcript
+                    speaker_tag = 0
+
+                    # Extract speaker tag if diarization is enabled
+                    if self.enable_diarization and result.is_final:
+                        # Get the last word's speaker tag (most accurate for final results)
+                        if alternative.words:
+                            speaker_tag = alternative.words[-1].speaker_tag
 
                     if text.strip():
                         transcription_result = TranscriptionResult(
@@ -147,6 +174,7 @@ class GoogleSTTEngine:
                             start_time=0.0,
                             end_time=0.0,
                             is_partial=not result.is_final,
+                            speaker_tag=speaker_tag,
                         )
 
                         # Put result in the async queue
@@ -238,10 +266,40 @@ class GoogleSTTEngine:
             except queue.Empty:
                 break
 
+    def update_settings(
+        self,
+        enable_punctuation: Optional[bool] = None,
+        enable_diarization: Optional[bool] = None,
+        diarization_speaker_count: Optional[int] = None,
+    ) -> None:
+        """
+        Update engine settings.
+
+        Args:
+            enable_punctuation: Enable automatic punctuation
+            enable_diarization: Enable speaker diarization
+            diarization_speaker_count: Expected number of speakers
+        """
+        if enable_punctuation is not None:
+            self.enable_punctuation = enable_punctuation
+        if enable_diarization is not None:
+            self.enable_diarization = enable_diarization
+        if diarization_speaker_count is not None:
+            self.diarization_speaker_count = diarization_speaker_count
+
+        logger.info(
+            f"Settings updated: punctuation={self.enable_punctuation}, "
+            f"diarization={self.enable_diarization}, "
+            f"speaker_count={self.diarization_speaker_count}"
+        )
+
 
 def create_engine(
     language_code: str = "ja-JP",
     sample_rate: int = 16000,
+    enable_punctuation: bool = True,
+    enable_diarization: bool = False,
+    diarization_speaker_count: int = 2,
 ) -> GoogleSTTEngine:
     """
     Create and initialize a Google STT engine.
@@ -249,6 +307,9 @@ def create_engine(
     Args:
         language_code: Language code for recognition
         sample_rate: Audio sample rate in Hz
+        enable_punctuation: Enable automatic punctuation
+        enable_diarization: Enable speaker diarization
+        diarization_speaker_count: Expected number of speakers
 
     Returns:
         Initialized GoogleSTTEngine instance
@@ -256,6 +317,9 @@ def create_engine(
     engine = GoogleSTTEngine(
         language_code=language_code,
         sample_rate=sample_rate,
+        enable_punctuation=enable_punctuation,
+        enable_diarization=enable_diarization,
+        diarization_speaker_count=diarization_speaker_count,
     )
     engine.load()
     return engine

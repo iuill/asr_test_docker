@@ -25,7 +25,7 @@ MODELS: dict[str, ModelConfig] = {
     "k2-v2": ModelConfig(
         id="k2-v2",
         name="ReazonSpeech K2-v2",
-        description="Sherpa-ONNX Transducer (159M params, 最速)",
+        description="Sherpa-ONNX Transducer (159M params, オフライン最速)",
         url=os.environ.get("K2_V2_URL", "http://k2-v2:8000"),
         speed="fast",
     ),
@@ -46,7 +46,7 @@ MODELS: dict[str, ModelConfig] = {
     "google-stt": ModelConfig(
         id="google-stt",
         name="Google Speech-to-Text",
-        description="Google Cloud Speech-to-Text API (Streaming)",
+        description="Google Cloud Speech-to-Text API (Streaming), 🚀全モデル最速・⏫️最高品質",
         url=os.environ.get("GOOGLE_STT_URL", "http://google-stt:8000"),
         speed="fast",
     ),
