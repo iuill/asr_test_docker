@@ -1,7 +1,7 @@
-# ReazonSpeech espnet-v2-onnx Base Image - CPU Version
+# ASR Test espnet-v2-onnx Base Image - CPU Version
 # Contains: Common base + espnet_onnx + ESPnet (for model export) + ONNX Runtime CPU
 
-FROM reazonspeech-common-base:cpu
+FROM asr-test-common-base:cpu
 
 # Install additional system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build base images for ReazonSpeech Docker
+# Build base images for ASR Test Docker
 # Usage: ./scripts/build-base-images.sh [gpu|cpu|all]
 
 set -e
@@ -18,25 +18,25 @@ build_gpu() {
     echo "[1/4] Building common-base:gpu..."
     docker build \
         -f "$PROJECT_ROOT/services/base/Dockerfile.common-gpu" \
-        -t reazonspeech-common-base:gpu \
+        -t asr-test-common-base:gpu \
         "$PROJECT_ROOT"
 
     echo "[2/4] Building k2-v2-base:gpu..."
     docker build \
         -f "$PROJECT_ROOT/services/base/Dockerfile.k2-v2-gpu" \
-        -t reazonspeech-k2-v2-base:gpu \
+        -t asr-test-k2-v2-base:gpu \
         "$PROJECT_ROOT"
 
     echo "[3/4] Building espnet-v2-base:gpu..."
     docker build \
         -f "$PROJECT_ROOT/services/base/Dockerfile.espnet-v2-gpu" \
-        -t reazonspeech-espnet-v2-base:gpu \
+        -t asr-test-espnet-v2-base:gpu \
         "$PROJECT_ROOT"
 
     echo "[4/4] Building espnet-v2-onnx-base:gpu..."
     docker build \
         -f "$PROJECT_ROOT/services/base/Dockerfile.espnet-v2-onnx-gpu" \
-        -t reazonspeech-espnet-v2-onnx-base:gpu \
+        -t asr-test-espnet-v2-onnx-base:gpu \
         "$PROJECT_ROOT"
 
     echo "GPU base images built successfully!"
@@ -50,25 +50,25 @@ build_cpu() {
     echo "[1/4] Building common-base:cpu..."
     docker build \
         -f "$PROJECT_ROOT/services/base/Dockerfile.common-cpu" \
-        -t reazonspeech-common-base:cpu \
+        -t asr-test-common-base:cpu \
         "$PROJECT_ROOT"
 
     echo "[2/4] Building k2-v2-base:cpu..."
     docker build \
         -f "$PROJECT_ROOT/services/base/Dockerfile.k2-v2-cpu" \
-        -t reazonspeech-k2-v2-base:cpu \
+        -t asr-test-k2-v2-base:cpu \
         "$PROJECT_ROOT"
 
     echo "[3/4] Building espnet-v2-base:cpu..."
     docker build \
         -f "$PROJECT_ROOT/services/base/Dockerfile.espnet-v2-cpu" \
-        -t reazonspeech-espnet-v2-base:cpu \
+        -t asr-test-espnet-v2-base:cpu \
         "$PROJECT_ROOT"
 
     echo "[4/4] Building espnet-v2-onnx-base:cpu..."
     docker build \
         -f "$PROJECT_ROOT/services/base/Dockerfile.espnet-v2-onnx-cpu" \
-        -t reazonspeech-espnet-v2-onnx-base:cpu \
+        -t asr-test-espnet-v2-onnx-base:cpu \
         "$PROJECT_ROOT"
 
     echo "CPU base images built successfully!"

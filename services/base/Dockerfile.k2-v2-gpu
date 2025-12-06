@@ -1,7 +1,7 @@
-# ReazonSpeech k2-v2 Base Image - GPU Version
+# ASR Test k2-v2 Base Image - GPU Version
 # Contains: Common base + sherpa-onnx with CUDA support
 
-FROM reazonspeech-common-base:gpu
+FROM asr-test-common-base:gpu
 
 # Install system dependencies required by sherpa-onnx
 RUN apt-get update && apt-get install -y --no-install-recommends \

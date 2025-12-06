@@ -1,5 +1,5 @@
 """
-Main entry point for the ReazonSpeech ESPnet ONNX real-time ASR server.
+Main entry point for the ESPnet-v2 ONNX real-time ASR server.
 """
 
 import argparse
@@ -21,7 +21,7 @@ def setup_logging(level: str = "INFO"):
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="ReazonSpeech ESPnet ONNX Real-time ASR Server",
+        description="ESPnet-v2 ONNX Real-time ASR Server",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 

@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "reazonspeech-webui"
+name = "asr-test-webui"
 version = "0.1.0"
-description = "Web UI for ReazonSpeech ASR models"
+description = "Web UI for ASR models"
 requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.109.0",

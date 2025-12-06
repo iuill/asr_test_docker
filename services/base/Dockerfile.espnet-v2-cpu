@@ -1,7 +1,7 @@
-# ReazonSpeech espnet-v2 Base Image - CPU Version
+# ASR Test espnet-v2 Base Image - CPU Version
 # Contains: Common base + ESPnet + build tools
 
-FROM reazonspeech-common-base:cpu
+FROM asr-test-common-base:cpu
 
 # Install additional system dependencies for ESPnet (build tools for pyworld)
 RUN apt-get update && apt-get install -y --no-install-recommends \

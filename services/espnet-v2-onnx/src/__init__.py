@@ -1,1 +1,1 @@
-"""ReazonSpeech ESPnet ONNX Real-time ASR Server."""
+"""ESPnet-v2 ONNX Real-time ASR Server."""

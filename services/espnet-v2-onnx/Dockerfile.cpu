@@ -1,7 +1,7 @@
-# ReazonSpeech Real-time ASR Server (ESPnet ONNX) - CPU Version
-# Requires: reazonspeech-espnet-v2-onnx-base:cpu
+# Real-time ASR Server (ESPnet ONNX) - CPU Version
+# Requires: asr-test-espnet-v2-onnx-base:cpu
 
-FROM reazonspeech-espnet-v2-onnx-base:cpu
+FROM asr-test-espnet-v2-onnx-base:cpu
 
 WORKDIR /app
 

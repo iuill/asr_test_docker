@@ -1,4 +1,4 @@
-# ReazonSpeech Common Base Image - CPU Version
+# ASR Test Common Base Image - CPU Version
 # Contains: Python + PyTorch CPU + Common dependencies
 
 FROM python:3.10-slim

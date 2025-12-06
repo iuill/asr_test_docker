@@ -21,8 +21,8 @@ from .config import MODELS, DEFAULT_MODEL, get_model, get_all_models
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="ReazonSpeech Web UI",
-    description="Unified Web UI for ReazonSpeech ASR models",
+    title="ASR Test Web UI",
+    description="Unified Web UI for ASR models",
     version="0.1.0",
 )
 
@@ -40,9 +40,9 @@ async def get_index():
             content="""
             <!DOCTYPE html>
             <html>
-            <head><title>ReazonSpeech ASR</title></head>
+            <head><title>ASR Test</title></head>
             <body>
-                <h1>ReazonSpeech Web UI</h1>
+                <h1>ASR Test Web UI</h1>
                 <p>Web UI not found. Please ensure the web files are in place.</p>
             </body>
             </html>

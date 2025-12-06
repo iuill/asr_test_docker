@@ -1,4 +1,4 @@
-# Build base images for ReazonSpeech Docker (Windows PowerShell)
+# Build base images for ASR Test Docker (Windows PowerShell)
 # Usage: .\scripts\build-base-images.ps1 [-Target gpu|cpu|all]
 
 param(
@@ -21,28 +21,28 @@ function Build-GPU {
     Write-Host "[1/4] Building common-base:gpu..." -ForegroundColor Yellow
     docker build `
         -f "$ProjectRoot/services/base/Dockerfile.common-gpu" `
-        -t reazonspeech-common-base:gpu `
+        -t asr-test-common-base:gpu `
         "$ProjectRoot"
     if ($LASTEXITCODE -ne 0) { throw "Failed to build common-base:gpu" }
 
     Write-Host "[2/4] Building k2-v2-base:gpu..." -ForegroundColor Yellow
     docker build `
         -f "$ProjectRoot/services/base/Dockerfile.k2-v2-gpu" `
-        -t reazonspeech-k2-v2-base:gpu `
+        -t asr-test-k2-v2-base:gpu `
         "$ProjectRoot"
     if ($LASTEXITCODE -ne 0) { throw "Failed to build k2-v2-base:gpu" }
 
     Write-Host "[3/4] Building espnet-v2-base:gpu..." -ForegroundColor Yellow
     docker build `
         -f "$ProjectRoot/services/base/Dockerfile.espnet-v2-gpu" `
-        -t reazonspeech-espnet-v2-base:gpu `
+        -t asr-test-espnet-v2-base:gpu `
         "$ProjectRoot"
     if ($LASTEXITCODE -ne 0) { throw "Failed to build espnet-v2-base:gpu" }
 
     Write-Host "[4/4] Building espnet-v2-onnx-base:gpu..." -ForegroundColor Yellow
     docker build `
         -f "$ProjectRoot/services/base/Dockerfile.espnet-v2-onnx-gpu" `
-        -t reazonspeech-espnet-v2-onnx-base:gpu `
+        -t asr-test-espnet-v2-onnx-base:gpu `
         "$ProjectRoot"
     if ($LASTEXITCODE -ne 0) { throw "Failed to build espnet-v2-onnx-base:gpu" }
 
@@ -57,28 +57,28 @@ function Build-CPU {
     Write-Host "[1/4] Building common-base:cpu..." -ForegroundColor Yellow
     docker build `
         -f "$ProjectRoot/services/base/Dockerfile.common-cpu" `
-        -t reazonspeech-common-base:cpu `
+        -t asr-test-common-base:cpu `
         "$ProjectRoot"
     if ($LASTEXITCODE -ne 0) { throw "Failed to build common-base:cpu" }
 
     Write-Host "[2/4] Building k2-v2-base:cpu..." -ForegroundColor Yellow
     docker build `
         -f "$ProjectRoot/services/base/Dockerfile.k2-v2-cpu" `
-        -t reazonspeech-k2-v2-base:cpu `
+        -t asr-test-k2-v2-base:cpu `
         "$ProjectRoot"
     if ($LASTEXITCODE -ne 0) { throw "Failed to build k2-v2-base:cpu" }
 
     Write-Host "[3/4] Building espnet-v2-base:cpu..." -ForegroundColor Yellow
     docker build `
         -f "$ProjectRoot/services/base/Dockerfile.espnet-v2-cpu" `
-        -t reazonspeech-espnet-v2-base:cpu `
+        -t asr-test-espnet-v2-base:cpu `
         "$ProjectRoot"
     if ($LASTEXITCODE -ne 0) { throw "Failed to build espnet-v2-base:cpu" }
 
     Write-Host "[4/4] Building espnet-v2-onnx-base:cpu..." -ForegroundColor Yellow
     docker build `
         -f "$ProjectRoot/services/base/Dockerfile.espnet-v2-onnx-cpu" `
-        -t reazonspeech-espnet-v2-onnx-base:cpu `
+        -t asr-test-espnet-v2-onnx-base:cpu `
         "$ProjectRoot"
     if ($LASTEXITCODE -ne 0) { throw "Failed to build espnet-v2-onnx-base:cpu" }
 

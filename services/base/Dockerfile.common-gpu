@@ -1,4 +1,4 @@
-# ReazonSpeech Common Base Image - GPU Version
+# ASR Test Common Base Image - GPU Version
 # Contains: CUDA + Python + PyTorch + Common dependencies
 
 # Use devel image for full CUDA libraries (libnvrtc.so required by onnxruntime-gpu)

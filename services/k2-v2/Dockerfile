@@ -1,7 +1,7 @@
-# ReazonSpeech Real-time ASR Server - GPU Version
-# Requires: reazonspeech-k2-v2-base:gpu
+# Real-time ASR Server (k2-v2) - GPU Version
+# Requires: asr-test-k2-v2-base:gpu
 
-FROM reazonspeech-k2-v2-base:gpu
+FROM asr-test-k2-v2-base:gpu
 
 WORKDIR /app
 

@@ -1,5 +1,5 @@
 /**
- * ReazonSpeech Real-time ASR Client with Multi-Model Support
+ * Real-time ASR Client with Multi-Model Support
  *
  * This script handles:
  * - Multiple model selection (checkboxes)

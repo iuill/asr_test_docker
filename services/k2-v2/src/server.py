@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # Model information
 MODEL_INFO = {
     "id": "k2-v2",
-    "name": "ReazonSpeech K2-v2",
+    "name": "K2-v2",
     "description": "Sherpa-ONNX Transducer (159M params)",
     "speed": "fast",
 }
@@ -62,8 +62,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="ReazonSpeech Real-time ASR",
-    description="Real-time speech recognition using reazonspeech-k2-v2",
+    title="Real-time ASR (K2-v2)",
+    description="Real-time speech recognition using k2-v2 model",
     version="0.1.0",
     lifespan=lifespan,
 )

@@ -1,7 +1,7 @@
-# ReazonSpeech Real-time ASR Server - CPU Version
-# Requires: reazonspeech-k2-v2-base:cpu
+# Real-time ASR Server (k2-v2) - CPU Version
+# Requires: asr-test-k2-v2-base:cpu
 
-FROM reazonspeech-k2-v2-base:cpu
+FROM asr-test-k2-v2-base:cpu
 
 WORKDIR /app
 

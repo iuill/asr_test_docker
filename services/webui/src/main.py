@@ -1,5 +1,5 @@
 """
-Main entry point for ReazonSpeech Web UI service.
+Main entry point for ASR Test Web UI service.
 """
 
 import argparse
@@ -21,7 +21,7 @@ def setup_logging():
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="ReazonSpeech Web UI Server"
+        description="ASR Test Web UI Server"
     )
     parser.add_argument(
         "--port",

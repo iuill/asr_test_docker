@@ -1,4 +1,4 @@
-# ReazonSpeech Real-time ASR Dependencies
+# K2-v2 Real-time ASR Dependencies
 
 # Core ASR
 sherpa-onnx>=1.10.0

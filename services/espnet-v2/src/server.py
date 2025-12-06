@@ -2,7 +2,7 @@
 FastAPI WebSocket Server for real-time speech recognition.
 
 This module provides the HTTP and WebSocket endpoints for the
-speech recognition service using reazonspeech-espnet-v2.
+speech recognition service using espnet-v2.
 """
 
 import json
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # Model information
 MODEL_INFO = {
     "id": "espnet-v2",
-    "name": "ReazonSpeech ESPnet-v2",
+    "name": "ESPnet-v2",
     "description": "ESPnet Conformer-Transducer (119M params)",
     "speed": "standard",
 }
@@ -62,8 +62,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="ReazonSpeech Real-time ASR (ESPnet)",
-    description="Real-time speech recognition using reazonspeech-espnet-v2",
+    title="Real-time ASR (ESPnet-v2)",
+    description="Real-time speech recognition using espnet-v2 model",
     version="0.1.0",
     lifespan=lifespan,
 )

@@ -1,7 +1,7 @@
-# ReazonSpeech espnet-v2-onnx Base Image - GPU Version
+# ASR Test espnet-v2-onnx Base Image - GPU Version
 # Contains: Common base + espnet_onnx + ESPnet (for model export) + ONNX Runtime GPU
 
-FROM reazonspeech-common-base:gpu
+FROM asr-test-common-base:gpu
 
 # Install additional system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

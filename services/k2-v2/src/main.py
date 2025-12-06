@@ -1,5 +1,5 @@
 """
-Main entry point for the ReazonSpeech real-time ASR server.
+Main entry point for the K2-v2 real-time ASR server.
 """
 
 import argparse
@@ -21,7 +21,7 @@ def setup_logging(level: str = "INFO"):
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="ReazonSpeech Real-time ASR Server",
+        description="K2-v2 Real-time ASR Server",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 

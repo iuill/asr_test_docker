@@ -1,7 +1,7 @@
-# ReazonSpeech Real-time ASR Server (ESPnet ONNX) - GPU Version
-# Requires: reazonspeech-espnet-v2-onnx-base:gpu
+# Real-time ASR Server (ESPnet ONNX) - GPU Version
+# Requires: asr-test-espnet-v2-onnx-base:gpu
 
-FROM reazonspeech-espnet-v2-onnx-base:gpu
+FROM asr-test-espnet-v2-onnx-base:gpu
 
 WORKDIR /app
 

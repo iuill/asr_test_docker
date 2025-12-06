@@ -1,7 +1,7 @@
-# ReazonSpeech k2-v2 Base Image - CPU Version
+# ASR Test k2-v2 Base Image - CPU Version
 # Contains: Common base + sherpa-onnx
 
-FROM reazonspeech-common-base:cpu
+FROM asr-test-common-base:cpu
 
 # Install sherpa-onnx (CPU version)
 RUN --mount=type=cache,target=/root/.cache/pip \
