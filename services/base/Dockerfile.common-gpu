@@ -1,7 +1,8 @@
 # ReazonSpeech Common Base Image - GPU Version
 # Contains: CUDA + Python + PyTorch + Common dependencies
 
-FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+# Use devel image for full CUDA libraries (libnvrtc.so required by onnxruntime-gpu)
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 

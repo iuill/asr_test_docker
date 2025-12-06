@@ -12,11 +12,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install ONNX Runtime with GPU support
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install \
-    onnxruntime-gpu>=1.16.0
-
 # Install espnet_onnx from GitHub
 # Note: espnet and espnet_model_zoo are needed for the initial model export
 # Using --no-cache-dir to ensure fresh install from GitHub
@@ -36,3 +31,10 @@ RUN ESPNET_ONNX_DIR=$(python -c "import espnet_onnx; import os; print(os.path.di
 # Install soundfile for audio processing
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install "soundfile>=0.12.0"
+
+# Install ONNX Runtime with GPU support LAST to override CPU version from espnet_onnx
+# espnet_onnx depends on onnxruntime (CPU), so we must uninstall it first then install GPU version
+# Note: onnxruntime-gpu 1.18+ requires CUDA 12, but base image uses CUDA 11.8
+# Use onnxruntime-gpu 1.17.x for CUDA 11.8 compatibility
+RUN pip uninstall -y onnxruntime && \
+    pip install --no-cache-dir "onnxruntime-gpu>=1.16.0,<1.18.0"

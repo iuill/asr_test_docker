@@ -25,7 +25,9 @@ classifiers = [
 
 dependencies = [
     "espnet-onnx>=0.2.0",
-    "onnxruntime>=1.16.0",
+    # Note: onnxruntime is NOT listed here intentionally.
+    # GPU/CPU version is installed by the base Docker image.
+    # Listing it here would override onnxruntime-gpu with CPU version.
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
     "websockets>=12.0",
