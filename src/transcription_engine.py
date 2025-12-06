@@ -118,25 +118,19 @@ class TranscriptionEngine:
         # Download model if needed
         model_paths = self._download_model()
 
-        # Configure the recognizer
-        config = sherpa_onnx.OfflineRecognizerConfig(
-            feat_config=sherpa_onnx.OfflineFeatureExtractorConfig(
-                sample_rate=SAMPLE_RATE,
-                feature_dim=80,
-            ),
-            model_config=sherpa_onnx.OfflineModelConfig(
-                transducer=sherpa_onnx.OfflineTransducerModelConfig(
-                    encoder=model_paths["encoder"],
-                    decoder=model_paths["decoder"],
-                    joiner=model_paths["joiner"],
-                ),
-                tokens=model_paths["tokens"],
-                num_threads=self.num_threads,
-                provider="cuda" if self.device == "cuda" else "cpu",
-            ),
+        # Use factory method for Transducer model
+        self.recognizer = sherpa_onnx.OfflineRecognizer.from_transducer(
+            encoder=model_paths["encoder"],
+            decoder=model_paths["decoder"],
+            joiner=model_paths["joiner"],
+            tokens=model_paths["tokens"],
+            num_threads=self.num_threads,
+            sample_rate=SAMPLE_RATE,
+            feature_dim=80,
+            decoding_method="greedy_search",
+            provider="cuda" if self.device == "cuda" else "cpu",
         )
 
-        self.recognizer = sherpa_onnx.OfflineRecognizer(config)
         logger.info("Model loaded successfully")
 
     def transcribe(self, audio: np.ndarray, sample_rate: int = SAMPLE_RATE) -> TranscriptionResult:
