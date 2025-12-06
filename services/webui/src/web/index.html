@@ -225,13 +225,6 @@
         }
 
         /* Status */
-        .status {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
 
         .status-dot {
             width: 0.75rem;
@@ -254,16 +247,33 @@
             50% { opacity: 0.5; }
         }
 
+        /* Status and Visualizer Row */
+        .status-visualizer-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0;
+            white-space: nowrap;
+        }
+
         /* Visualizer */
         .visualizer {
-            height: 60px;
+            height: 30px;
             background-color: #f9fafb;
             border-radius: 0.5rem;
-            margin-bottom: 1rem;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            width: 25%;
         }
 
         .visualizer canvas {
@@ -450,13 +460,15 @@
 
         <!-- Recording Controls -->
         <div class="card">
-            <div class="status">
-                <div class="status-dot" id="statusDot"></div>
-                <span id="statusText">接続待機中</span>
-            </div>
+            <div class="status-visualizer-row">
+                <div class="status">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">接続待機中</span>
+                </div>
 
-            <div class="visualizer">
-                <canvas id="visualizer"></canvas>
+                <div class="visualizer">
+                    <canvas id="visualizer"></canvas>
+                </div>
             </div>
 
             <div class="controls">
