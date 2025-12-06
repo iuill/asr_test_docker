@@ -33,7 +33,7 @@
         }
 
         .container {
-            max-width: 900px;
+            max-width: 1200px;
             margin: 0 auto;
         }
 
@@ -68,10 +68,10 @@
             color: #374151;
         }
 
-        /* Model Selector */
+        /* Model Selector - Checkbox style */
         .model-selector {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 1rem;
         }
 
@@ -82,9 +82,12 @@
             cursor: pointer;
             transition: all 0.2s;
             position: relative;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
         }
 
-        .model-card:hover {
+        .model-card:hover:not(.disabled) {
             border-color: var(--primary-color);
             background-color: #f8fafc;
         }
@@ -97,6 +100,22 @@
         .model-card.disabled {
             opacity: 0.5;
             cursor: not-allowed;
+        }
+
+        .model-checkbox {
+            width: 1.25rem;
+            height: 1.25rem;
+            margin-top: 0.125rem;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .model-card.disabled .model-checkbox {
+            cursor: not-allowed;
+        }
+
+        .model-info {
+            flex: 1;
         }
 
         .model-name {
@@ -252,17 +271,63 @@
             height: 100%;
         }
 
-        /* Transcription */
+        /* Transcription Results Grid */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1rem;
+        }
+
+        .result-card {
+            background-color: var(--card-bg);
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .result-model-name {
+            font-weight: 600;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .result-status {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+
+        .result-status.connected {
+            color: var(--success-color);
+        }
+
+        .result-status.error {
+            color: var(--danger-color);
+        }
+
         .transcription-area {
-            min-height: 300px;
-            max-height: 500px;
+            min-height: 200px;
+            max-height: 400px;
             overflow-y: auto;
             border: 1px solid var(--border-color);
             border-radius: 0.5rem;
-            padding: 1rem;
+            padding: 0.75rem;
             background-color: #fafafa;
-            font-size: 1.125rem;
+            font-size: 1rem;
             line-height: 1.75;
+            flex: 1;
         }
 
         .transcription-text {
@@ -280,6 +345,12 @@
             color: #6b7280;
             text-align: center;
             margin-top: 1rem;
+        }
+
+        .no-model-selected {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
         }
 
         footer {
@@ -312,18 +383,46 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* Model color indicators */
+        .model-color {
+            width: 4px;
+            height: 100%;
+            border-radius: 2px;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+
+        .result-card[data-model="k2-v2"] .result-header {
+            border-left: 4px solid #2563eb;
+            padding-left: 0.75rem;
+            margin-left: -1rem;
+        }
+
+        .result-card[data-model="espnet-v2"] .result-header {
+            border-left: 4px solid #7c3aed;
+            padding-left: 0.75rem;
+            margin-left: -1rem;
+        }
+
+        .result-card[data-model="espnet-v2-onnx"] .result-header {
+            border-left: 4px solid #059669;
+            padding-left: 0.75rem;
+            margin-left: -1rem;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>ReazonSpeech リアルタイム音声認識</h1>
-            <p class="subtitle">日本語音声認識モデルを選択して文字起こし</p>
+            <p class="subtitle">複数モデルを同時に比較できます</p>
         </header>
 
         <!-- Model Selector -->
         <div class="card">
-            <h2 class="card-title">モデル選択</h2>
+            <h2 class="card-title">モデル選択（複数選択可）</h2>
             <div class="model-selector" id="modelSelector">
                 <div class="model-card loading">
                     <div class="loading-spinner"></div>
@@ -364,16 +463,11 @@
             </div>
         </div>
 
-        <!-- Transcription Output -->
-        <div class="card">
-            <div class="transcription-area">
-                <div class="transcription-text" id="transcription">
-                    <!-- 認識結果がここに表示されます -->
-                </div>
+        <!-- Transcription Results -->
+        <div id="resultsContainer">
+            <div class="no-model-selected">
+                モデルを選択してください
             </div>
-            <p class="info">
-                マイクに向かって話すと、リアルタイムで文字起こしされます。
-            </p>
         </div>
 
         <footer>

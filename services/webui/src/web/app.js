@@ -1,12 +1,12 @@
 /**
- * ReazonSpeech Real-time ASR Client with Model Selection
+ * ReazonSpeech Real-time ASR Client with Multi-Model Support
  *
  * This script handles:
- * - Model selection and status display
+ * - Multiple model selection (checkboxes)
  * - Microphone access and audio capture
- * - WebSocket communication with the server
+ * - Multiple WebSocket connections (one per selected model)
  * - Audio visualization
- * - Transcription display
+ * - Separate transcription display per model
  */
 
 class ASRClient {
@@ -17,9 +17,9 @@ class ASRClient {
         this.clearBtn = document.getElementById('clearBtn');
         this.statusDot = document.getElementById('statusDot');
         this.statusText = document.getElementById('statusText');
-        this.transcriptionEl = document.getElementById('transcription');
         this.visualizerCanvas = document.getElementById('visualizer');
         this.modelSelector = document.getElementById('modelSelector');
+        this.resultsContainer = document.getElementById('resultsContainer');
 
         // Audio context and nodes
         this.audioContext = null;
@@ -27,16 +27,13 @@ class ASRClient {
         this.processor = null;
         this.analyser = null;
 
-        // WebSocket
-        this.ws = null;
-        this.isRecording = false;
-
-        // Model state
-        this.selectedModel = null;
+        // Multi-model state
         this.models = [];
+        this.selectedModels = new Set();  // Set of selected model IDs
+        this.connections = new Map();     // Map of modelId -> { ws, fullText, status }
 
-        // Transcription state
-        this.fullText = '';
+        // Recording state
+        this.isRecording = false;
 
         // Audio settings
         this.sampleRate = 16000;
@@ -64,9 +61,15 @@ class ASRClient {
             const data = await response.json();
 
             this.models = data.models;
-            this.selectedModel = data.default;
+
+            // Select default model initially
+            const defaultModel = this.models.find(m => m.id === data.default);
+            if (defaultModel && defaultModel.status === 'healthy' && defaultModel.model_loaded) {
+                this.selectedModels.add(data.default);
+            }
 
             this.renderModelSelector();
+            this.renderResultsArea();
             this.updateStartButton();
         } catch (error) {
             console.error('Failed to load models:', error);
@@ -89,7 +92,17 @@ class ASRClient {
             const data = await response.json();
 
             this.models = data.models;
+
+            // Remove any selected models that are now offline
+            for (const modelId of this.selectedModels) {
+                const model = this.models.find(m => m.id === modelId);
+                if (!model || model.status !== 'healthy' || !model.model_loaded) {
+                    this.selectedModels.delete(modelId);
+                }
+            }
+
             this.renderModelSelector();
+            this.renderResultsArea();
             this.updateStartButton();
         } catch (error) {
             console.error('Failed to refresh model status:', error);
@@ -97,11 +110,11 @@ class ASRClient {
     }
 
     /**
-     * Render the model selector UI
+     * Render the model selector UI with checkboxes
      */
     renderModelSelector() {
         this.modelSelector.innerHTML = this.models.map(model => {
-            const isSelected = model.id === this.selectedModel;
+            const isSelected = this.selectedModels.has(model.id);
             const isHealthy = model.status === 'healthy' && model.model_loaded;
             const statusClass = isHealthy ? 'healthy' : (model.status === 'offline' ? 'offline' : 'loading');
             const statusText = isHealthy ? '利用可能' : (model.status === 'offline' ? 'オフライン' : '準備中');
@@ -109,13 +122,20 @@ class ASRClient {
             return `
                 <div class="model-card ${isSelected ? 'selected' : ''} ${!isHealthy ? 'disabled' : ''}"
                      data-model-id="${model.id}"
-                     onclick="window.asrClient.selectModel('${model.id}')">
-                    <div class="model-name">${model.name}</div>
-                    <div class="model-description">${model.description}</div>
-                    <div class="model-status">
-                        <span class="status-indicator ${statusClass}"></span>
-                        <span>${statusText}</span>
-                        <span class="speed-badge ${model.speed === 'fast' ? 'fast' : ''}">${model.speed === 'fast' ? '高速' : '標準'}</span>
+                     onclick="window.asrClient.toggleModel('${model.id}')">
+                    <input type="checkbox"
+                           class="model-checkbox"
+                           ${isSelected ? 'checked' : ''}
+                           ${!isHealthy ? 'disabled' : ''}
+                           onclick="event.stopPropagation(); window.asrClient.toggleModel('${model.id}')">
+                    <div class="model-info">
+                        <div class="model-name">${model.name}</div>
+                        <div class="model-description">${model.description}</div>
+                        <div class="model-status">
+                            <span class="status-indicator ${statusClass}"></span>
+                            <span>${statusText}</span>
+                            <span class="speed-badge ${model.speed === 'fast' ? 'fast' : ''}">${model.speed === 'fast' ? '高速' : '標準'}</span>
+                        </div>
                     </div>
                 </div>
             `;
@@ -123,9 +143,9 @@ class ASRClient {
     }
 
     /**
-     * Select a model
+     * Toggle model selection
      */
-    selectModel(modelId) {
+    toggleModel(modelId) {
         const model = this.models.find(m => m.id === modelId);
         if (!model) return;
 
@@ -135,24 +155,74 @@ class ASRClient {
             return; // Don't allow selecting unavailable models
         }
 
-        this.selectedModel = modelId;
+        if (this.selectedModels.has(modelId)) {
+            this.selectedModels.delete(modelId);
+        } else {
+            this.selectedModels.add(modelId);
+        }
+
         this.renderModelSelector();
+        this.renderResultsArea();
         this.updateStartButton();
 
-        // If recording, reconnect to new model
+        // If recording, update connections
         if (this.isRecording) {
-            this.reconnect();
+            this.updateConnections();
         }
     }
 
     /**
-     * Update start button state based on model availability
+     * Render the results area based on selected models
+     */
+    renderResultsArea() {
+        if (this.selectedModels.size === 0) {
+            this.resultsContainer.innerHTML = `
+                <div class="no-model-selected">
+                    モデルを選択してください
+                </div>
+            `;
+            return;
+        }
+
+        const selectedModelsList = Array.from(this.selectedModels);
+        this.resultsContainer.innerHTML = `
+            <div class="results-grid">
+                ${selectedModelsList.map(modelId => {
+                    const model = this.models.find(m => m.id === modelId);
+                    const connection = this.connections.get(modelId);
+                    const statusText = connection ?
+                        (connection.status === 'connected' ? '接続中' :
+                         connection.status === 'error' ? 'エラー' : '待機中')
+                        : '待機中';
+                    const statusClass = connection?.status || '';
+
+                    return `
+                        <div class="result-card" data-model="${modelId}">
+                            <div class="result-header">
+                                <span class="result-model-name">${model?.name || modelId}</span>
+                                <span class="result-status ${statusClass}">${statusText}</span>
+                            </div>
+                            <div class="transcription-area">
+                                <div class="transcription-text" id="transcription-${modelId}">
+                                    ${connection?.fullText || ''}${connection?.partialText ? `<span class="partial">${connection.partialText}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+            <p class="info">
+                マイクに向かって話すと、各モデルでリアルタイムに文字起こしされます。
+            </p>
+        `;
+    }
+
+    /**
+     * Update start button state based on model selection
      */
     updateStartButton() {
-        const model = this.models.find(m => m.id === this.selectedModel);
-        const isHealthy = model && model.status === 'healthy' && model.model_loaded;
-
-        this.startBtn.disabled = !isHealthy || this.isRecording;
+        const hasSelectedModels = this.selectedModels.size > 0;
+        this.startBtn.disabled = !hasSelectedModels || this.isRecording;
     }
 
     /**
@@ -179,7 +249,7 @@ class ASRClient {
     }
 
     /**
-     * Start recording and transcription
+     * Start recording and transcription for all selected models
      */
     async start() {
         try {
@@ -208,22 +278,22 @@ class ASRClient {
             source.connect(this.processor);
             this.processor.connect(this.audioContext.destination);
 
-            // Connect to WebSocket
-            await this.connectWebSocket();
+            // Connect to all selected models
+            await this.connectAllModels();
 
             // Handle audio data
             this.processor.onaudioprocess = (e) => {
                 if (!this.isRecording) return;
 
                 const inputData = e.inputBuffer.getChannelData(0);
-                this.sendAudio(inputData);
+                this.sendAudioToAll(inputData);
             };
 
             // Update UI
             this.isRecording = true;
             this.startBtn.disabled = true;
             this.stopBtn.disabled = false;
-            this.updateStatus(`録音中... (${this.getSelectedModelName()})`, true);
+            this.updateStatus(`録音中... (${this.selectedModels.size}モデル)`, true);
 
             // Start visualization
             this.drawVisualizer();
@@ -236,103 +306,156 @@ class ASRClient {
     }
 
     /**
-     * Get selected model name
+     * Connect to all selected models
      */
-    getSelectedModelName() {
-        const model = this.models.find(m => m.id === this.selectedModel);
-        return model ? model.name : this.selectedModel;
+    async connectAllModels() {
+        const connectPromises = Array.from(this.selectedModels).map(modelId =>
+            this.connectToModel(modelId)
+        );
+
+        await Promise.allSettled(connectPromises);
+        this.renderResultsArea();
     }
 
     /**
-     * Connect to WebSocket server with selected model
+     * Connect to a specific model
      */
-    async connectWebSocket() {
+    async connectToModel(modelId) {
         return new Promise((resolve, reject) => {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws/asr?model=${this.selectedModel}`;
+            const wsUrl = `${protocol}//${window.location.host}/ws/asr?model=${modelId}`;
 
-            this.ws = new WebSocket(wsUrl);
+            const ws = new WebSocket(wsUrl);
 
-            this.ws.onopen = () => {
-                console.log('WebSocket connected');
+            // Initialize connection state
+            this.connections.set(modelId, {
+                ws,
+                fullText: '',
+                partialText: '',
+                status: 'connecting'
+            });
+
+            ws.onopen = () => {
+                console.log(`WebSocket connected to ${modelId}`);
+                const conn = this.connections.get(modelId);
+                if (conn) {
+                    conn.status = 'connected';
+                    this.renderResultsArea();
+                }
                 resolve();
             };
 
-            this.ws.onclose = () => {
-                console.log('WebSocket disconnected');
-                if (this.isRecording) {
-                    this.stop();
+            ws.onclose = () => {
+                console.log(`WebSocket disconnected from ${modelId}`);
+                const conn = this.connections.get(modelId);
+                if (conn) {
+                    conn.status = 'disconnected';
+                    this.renderResultsArea();
                 }
             };
 
-            this.ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
+            ws.onerror = (error) => {
+                console.error(`WebSocket error for ${modelId}:`, error);
+                const conn = this.connections.get(modelId);
+                if (conn) {
+                    conn.status = 'error';
+                    this.renderResultsArea();
+                }
                 reject(error);
             };
 
-            this.ws.onmessage = (event) => {
-                this.handleMessage(JSON.parse(event.data));
+            ws.onmessage = (event) => {
+                this.handleMessage(modelId, JSON.parse(event.data));
             };
 
             // Timeout
             setTimeout(() => {
-                if (this.ws.readyState !== WebSocket.OPEN) {
-                    reject(new Error('WebSocket connection timeout'));
+                if (ws.readyState !== WebSocket.OPEN) {
+                    const conn = this.connections.get(modelId);
+                    if (conn) {
+                        conn.status = 'error';
+                        this.renderResultsArea();
+                    }
+                    reject(new Error(`WebSocket connection timeout for ${modelId}`));
                 }
             }, 5000);
         });
     }
 
     /**
-     * Reconnect to a different model while recording
+     * Update connections when model selection changes during recording
      */
-    async reconnect() {
-        // Close existing connection
-        if (this.ws) {
-            this.ws.close();
+    async updateConnections() {
+        // Close connections for deselected models
+        for (const [modelId, conn] of this.connections) {
+            if (!this.selectedModels.has(modelId)) {
+                if (conn.ws && conn.ws.readyState === WebSocket.OPEN) {
+                    conn.ws.send(JSON.stringify({ type: 'end' }));
+                    conn.ws.close();
+                }
+                this.connections.delete(modelId);
+            }
         }
 
-        try {
-            await this.connectWebSocket();
-            this.updateStatus(`録音中... (${this.getSelectedModelName()})`, true);
-        } catch (error) {
-            console.error('Failed to reconnect:', error);
-            this.updateStatus('再接続に失敗しました');
-            this.stop();
+        // Connect to newly selected models
+        for (const modelId of this.selectedModels) {
+            if (!this.connections.has(modelId)) {
+                try {
+                    await this.connectToModel(modelId);
+                } catch (error) {
+                    console.error(`Failed to connect to ${modelId}:`, error);
+                }
+            }
         }
+
+        this.renderResultsArea();
     }
 
     /**
-     * Handle incoming WebSocket message
+     * Handle incoming WebSocket message for a specific model
      */
-    handleMessage(data) {
-        console.log('Received:', data);
+    handleMessage(modelId, data) {
+        const conn = this.connections.get(modelId);
+        if (!conn) return;
+
+        console.log(`Received from ${modelId}:`, data);
 
         if (data.type === 'transcription') {
             if (data.is_final) {
-                this.fullText += data.text;
-                this.updateTranscription(this.fullText);
+                conn.fullText += data.text;
+                conn.partialText = '';
             } else {
-                // Show partial result
-                this.updateTranscription(this.fullText + `<span class="partial">${data.text}</span>`);
+                conn.partialText = data.text;
             }
+            this.updateTranscriptionForModel(modelId);
         } else if (data.type === 'error') {
-            console.error('Server error:', data.message);
-            this.updateStatus('エラー: ' + data.message);
+            console.error(`Server error for ${modelId}:`, data.message);
+            conn.status = 'error';
+            this.renderResultsArea();
         } else if (data.type === 'end') {
-            console.log('Transcription ended');
+            console.log(`Transcription ended for ${modelId}`);
         }
     }
 
     /**
-     * Send audio data to server
+     * Update transcription display for a specific model
      */
-    sendAudio(audioData) {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            return;
-        }
+    updateTranscriptionForModel(modelId) {
+        const conn = this.connections.get(modelId);
+        if (!conn) return;
 
-        // Convert float32 to int16
+        const el = document.getElementById(`transcription-${modelId}`);
+        if (el) {
+            el.innerHTML = conn.fullText + (conn.partialText ? `<span class="partial">${conn.partialText}</span>` : '');
+            el.scrollTop = el.scrollHeight;
+        }
+    }
+
+    /**
+     * Send audio data to all connected models
+     */
+    sendAudioToAll(audioData) {
+        // Convert float32 to int16 once
         const int16Data = new Int16Array(audioData.length);
         for (let i = 0; i < audioData.length; i++) {
             const s = Math.max(-1, Math.min(1, audioData[i]));
@@ -347,7 +470,12 @@ class ASRClient {
         message.set(new Uint8Array(header), 0);
         message.set(new Uint8Array(int16Data.buffer), 4);
 
-        this.ws.send(message.buffer);
+        // Send to all connected models
+        for (const [modelId, conn] of this.connections) {
+            if (conn.ws && conn.ws.readyState === WebSocket.OPEN) {
+                conn.ws.send(message.buffer);
+            }
+        }
     }
 
     /**
@@ -356,9 +484,11 @@ class ASRClient {
     stop() {
         this.isRecording = false;
 
-        // Send end signal
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type: 'end' }));
+        // Send end signal to all connections
+        for (const [modelId, conn] of this.connections) {
+            if (conn.ws && conn.ws.readyState === WebSocket.OPEN) {
+                conn.ws.send(JSON.stringify({ type: 'end' }));
+            }
         }
 
         // Cleanup
@@ -368,6 +498,7 @@ class ASRClient {
         this.updateStartButton();
         this.stopBtn.disabled = true;
         this.updateStatus('停止', false, false);
+        this.renderResultsArea();
     }
 
     /**
@@ -394,26 +525,33 @@ class ASRClient {
             this.mediaStream = null;
         }
 
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
+        // Close all WebSocket connections
+        for (const [modelId, conn] of this.connections) {
+            if (conn.ws) {
+                conn.ws.close();
+            }
         }
+        this.connections.clear();
     }
 
     /**
-     * Clear transcription
+     * Clear all transcriptions
      */
     clear() {
-        this.fullText = '';
-        this.transcriptionEl.innerHTML = '';
-    }
+        for (const [modelId, conn] of this.connections) {
+            conn.fullText = '';
+            conn.partialText = '';
+        }
 
-    /**
-     * Update transcription display
-     */
-    updateTranscription(html) {
-        this.transcriptionEl.innerHTML = html;
-        this.transcriptionEl.scrollTop = this.transcriptionEl.scrollHeight;
+        // Also clear for non-connected but selected models
+        for (const modelId of this.selectedModels) {
+            const el = document.getElementById(`transcription-${modelId}`);
+            if (el) {
+                el.innerHTML = '';
+            }
+        }
+
+        this.renderResultsArea();
     }
 
     /**
