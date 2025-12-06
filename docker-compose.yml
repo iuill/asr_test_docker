@@ -1,5 +1,35 @@
 services:
   # =============================================================================
+  # Web UI (共通フロントエンド)
+  # =============================================================================
+  webui:
+    build:
+      context: ./services/webui
+      dockerfile: Dockerfile
+    ports:
+      - "13800:8000"
+    depends_on:
+      - k2-v2
+      - espnet-v2
+      - espnet-v2-onnx
+    restart: unless-stopped
+
+  # Web UI for CPU-only mode
+  webui-cpu:
+    build:
+      context: ./services/webui
+      dockerfile: Dockerfile
+    ports:
+      - "13800:8000"
+    depends_on:
+      - k2-v2-cpu
+      - espnet-v2-cpu
+      - espnet-v2-onnx-cpu
+    profiles:
+      - cpu
+    restart: unless-stopped
+
+  # =============================================================================
   # reazonspeech-k2-v2 (sherpa-onnx based)
   # =============================================================================
 
@@ -8,8 +38,8 @@ services:
     build:
       context: ./services/k2-v2
       dockerfile: Dockerfile
-    ports:
-      - "13780:8000"
+    expose:
+      - "8000"
     volumes:
       - k2-v2-model-cache:/root/.cache/huggingface
     environment:
@@ -28,8 +58,8 @@ services:
     build:
       context: ./services/k2-v2
       dockerfile: Dockerfile.cpu
-    ports:
-      - "13780:8000"
+    expose:
+      - "8000"
     volumes:
       - k2-v2-model-cache:/root/.cache/huggingface
     environment:
@@ -47,8 +77,8 @@ services:
     build:
       context: ./services/espnet-v2
       dockerfile: Dockerfile
-    ports:
-      - "13781:8000"
+    expose:
+      - "8000"
     volumes:
       - espnet-v2-model-cache:/root/.cache/huggingface
       - espnet-v2-torch-cache:/root/.cache/torch
@@ -69,8 +99,8 @@ services:
     build:
       context: ./services/espnet-v2
       dockerfile: Dockerfile.cpu
-    ports:
-      - "13781:8000"
+    expose:
+      - "8000"
     volumes:
       - espnet-v2-model-cache:/root/.cache/huggingface
       - espnet-v2-torch-cache:/root/.cache/torch
@@ -90,8 +120,8 @@ services:
     build:
       context: ./services/espnet-v2-onnx
       dockerfile: Dockerfile
-    ports:
-      - "13782:8000"
+    expose:
+      - "8000"
     volumes:
       - espnet-v2-onnx-model-cache:/root/.cache/huggingface
       - ./cache/espnet_onnx:/root/.cache/espnet_onnx
@@ -114,8 +144,8 @@ services:
     build:
       context: ./services/espnet-v2-onnx
       dockerfile: Dockerfile.cpu
-    ports:
-      - "13782:8000"
+    expose:
+      - "8000"
     volumes:
       - espnet-v2-onnx-model-cache:/root/.cache/huggingface
       - ./cache/espnet_onnx:/root/.cache/espnet_onnx

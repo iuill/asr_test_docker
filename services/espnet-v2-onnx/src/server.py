@@ -8,18 +8,23 @@ speech recognition service using reazonspeech-espnet-v2 with ONNX.
 import json
 import logging
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Optional
 
 import numpy as np
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 
 from .audio_processor import AudioProcessor, parse_audio_message
 from .transcription_engine import TranscriptionEngine, create_engine
 
 logger = logging.getLogger(__name__)
+
+# Model information
+MODEL_INFO = {
+    "id": "espnet-v2-onnx",
+    "name": "ReazonSpeech ESPnet-v2 ONNX",
+    "description": "ESPnet + ONNX Runtime (119M params)",
+    "speed": "fast",
+}
 
 # Global engine instance
 _engine: Optional[TranscriptionEngine] = None
@@ -89,29 +94,6 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-@app.get("/", response_class=HTMLResponse)
-async def get_index():
-    """Serve the main web UI."""
-    web_dir = Path(__file__).parent / "web"
-    index_path = web_dir / "index.html"
-
-    if index_path.exists():
-        return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
-    else:
-        return HTMLResponse(
-            content="""
-            <!DOCTYPE html>
-            <html>
-            <head><title>ReazonSpeech ASR (ESPnet ONNX)</title></head>
-            <body>
-                <h1>ReazonSpeech Real-time ASR (ESPnet ONNX)</h1>
-                <p>Web UI not found. Please ensure the web files are in place.</p>
-            </body>
-            </html>
-            """
-        )
-
-
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
@@ -119,7 +101,17 @@ async def health_check():
     return {
         "status": "healthy",
         "model_loaded": engine.is_loaded(),
-        "model": "reazonspeech-espnet-v2-onnx",
+        "model": MODEL_INFO["id"],
+    }
+
+
+@app.get("/info")
+async def get_info():
+    """Get model information."""
+    engine = get_engine()
+    return {
+        **MODEL_INFO,
+        "model_loaded": engine.is_loaded(),
     }
 
 
@@ -239,10 +231,5 @@ def create_app(device: str = "cpu", num_threads: int = 4) -> FastAPI:
     """
     app.state.device = device
     app.state.num_threads = num_threads
-
-    # Mount static files if available
-    web_dir = Path(__file__).parent / "web"
-    if web_dir.exists():
-        app.mount("/static", StaticFiles(directory=str(web_dir)), name="static")
 
     return app

@@ -1,7 +1,8 @@
 /**
- * ReazonSpeech Real-time ASR Client (ESPnet ONNX)
+ * ReazonSpeech Real-time ASR Client with Model Selection
  *
  * This script handles:
+ * - Model selection and status display
  * - Microphone access and audio capture
  * - WebSocket communication with the server
  * - Audio visualization
@@ -18,6 +19,7 @@ class ASRClient {
         this.statusText = document.getElementById('statusText');
         this.transcriptionEl = document.getElementById('transcription');
         this.visualizerCanvas = document.getElementById('visualizer');
+        this.modelSelector = document.getElementById('modelSelector');
 
         // Audio context and nodes
         this.audioContext = null;
@@ -28,6 +30,10 @@ class ASRClient {
         // WebSocket
         this.ws = null;
         this.isRecording = false;
+
+        // Model state
+        this.selectedModel = null;
+        this.models = [];
 
         // Transcription state
         this.fullText = '';
@@ -43,6 +49,110 @@ class ASRClient {
 
         // Initialize
         this.setupVisualizer();
+        this.loadModels();
+
+        // Refresh model status periodically
+        setInterval(() => this.refreshModelStatus(), 30000);
+    }
+
+    /**
+     * Load available models from the server
+     */
+    async loadModels() {
+        try {
+            const response = await fetch('/api/models');
+            const data = await response.json();
+
+            this.models = data.models;
+            this.selectedModel = data.default;
+
+            this.renderModelSelector();
+            this.updateStartButton();
+        } catch (error) {
+            console.error('Failed to load models:', error);
+            this.modelSelector.innerHTML = `
+                <div class="model-card" style="color: #dc2626;">
+                    モデル情報の読み込みに失敗しました。ページを再読み込みしてください。
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Refresh model status without full reload
+     */
+    async refreshModelStatus() {
+        if (this.isRecording) return; // Don't refresh while recording
+
+        try {
+            const response = await fetch('/api/models');
+            const data = await response.json();
+
+            this.models = data.models;
+            this.renderModelSelector();
+            this.updateStartButton();
+        } catch (error) {
+            console.error('Failed to refresh model status:', error);
+        }
+    }
+
+    /**
+     * Render the model selector UI
+     */
+    renderModelSelector() {
+        this.modelSelector.innerHTML = this.models.map(model => {
+            const isSelected = model.id === this.selectedModel;
+            const isHealthy = model.status === 'healthy' && model.model_loaded;
+            const statusClass = isHealthy ? 'healthy' : (model.status === 'offline' ? 'offline' : 'loading');
+            const statusText = isHealthy ? '利用可能' : (model.status === 'offline' ? 'オフライン' : '準備中');
+
+            return `
+                <div class="model-card ${isSelected ? 'selected' : ''} ${!isHealthy ? 'disabled' : ''}"
+                     data-model-id="${model.id}"
+                     onclick="window.asrClient.selectModel('${model.id}')">
+                    <div class="model-name">${model.name}</div>
+                    <div class="model-description">${model.description}</div>
+                    <div class="model-status">
+                        <span class="status-indicator ${statusClass}"></span>
+                        <span>${statusText}</span>
+                        <span class="speed-badge ${model.speed === 'fast' ? 'fast' : ''}">${model.speed === 'fast' ? '高速' : '標準'}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Select a model
+     */
+    selectModel(modelId) {
+        const model = this.models.find(m => m.id === modelId);
+        if (!model) return;
+
+        // Check if model is available
+        const isHealthy = model.status === 'healthy' && model.model_loaded;
+        if (!isHealthy) {
+            return; // Don't allow selecting unavailable models
+        }
+
+        this.selectedModel = modelId;
+        this.renderModelSelector();
+        this.updateStartButton();
+
+        // If recording, reconnect to new model
+        if (this.isRecording) {
+            this.reconnect();
+        }
+    }
+
+    /**
+     * Update start button state based on model availability
+     */
+    updateStartButton() {
+        const model = this.models.find(m => m.id === this.selectedModel);
+        const isHealthy = model && model.status === 'healthy' && model.model_loaded;
+
+        this.startBtn.disabled = !isHealthy || this.isRecording;
     }
 
     /**
@@ -113,7 +223,7 @@ class ASRClient {
             this.isRecording = true;
             this.startBtn.disabled = true;
             this.stopBtn.disabled = false;
-            this.updateStatus('録音中...', true);
+            this.updateStatus(`録音中... (${this.getSelectedModelName()})`, true);
 
             // Start visualization
             this.drawVisualizer();
@@ -126,12 +236,20 @@ class ASRClient {
     }
 
     /**
-     * Connect to WebSocket server
+     * Get selected model name
+     */
+    getSelectedModelName() {
+        const model = this.models.find(m => m.id === this.selectedModel);
+        return model ? model.name : this.selectedModel;
+    }
+
+    /**
+     * Connect to WebSocket server with selected model
      */
     async connectWebSocket() {
         return new Promise((resolve, reject) => {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws/asr`;
+            const wsUrl = `${protocol}//${window.location.host}/ws/asr?model=${this.selectedModel}`;
 
             this.ws = new WebSocket(wsUrl);
 
@@ -166,6 +284,25 @@ class ASRClient {
     }
 
     /**
+     * Reconnect to a different model while recording
+     */
+    async reconnect() {
+        // Close existing connection
+        if (this.ws) {
+            this.ws.close();
+        }
+
+        try {
+            await this.connectWebSocket();
+            this.updateStatus(`録音中... (${this.getSelectedModelName()})`, true);
+        } catch (error) {
+            console.error('Failed to reconnect:', error);
+            this.updateStatus('再接続に失敗しました');
+            this.stop();
+        }
+    }
+
+    /**
      * Handle incoming WebSocket message
      */
     handleMessage(data) {
@@ -181,6 +318,7 @@ class ASRClient {
             }
         } else if (data.type === 'error') {
             console.error('Server error:', data.message);
+            this.updateStatus('エラー: ' + data.message);
         } else if (data.type === 'end') {
             console.log('Transcription ended');
         }
@@ -227,7 +365,7 @@ class ASRClient {
         this.cleanup();
 
         // Update UI
-        this.startBtn.disabled = false;
+        this.updateStartButton();
         this.stopBtn.disabled = true;
         this.updateStatus('停止', false, false);
     }
@@ -307,8 +445,8 @@ class ASRClient {
         for (let i = 0; i < bufferLength; i++) {
             const barHeight = (dataArray[i] / 255) * height;
 
-            // Gradient from purple to violet (ONNX theme)
-            const hue = 270 + (dataArray[i] / 255) * 30;
+            // Gradient from blue to purple
+            const hue = 220 + (dataArray[i] / 255) * 40;
             this.canvasCtx.fillStyle = `hsl(${hue}, 70%, 50%)`;
 
             this.canvasCtx.fillRect(

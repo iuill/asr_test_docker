@@ -10,6 +10,8 @@
             --primary-hover: #1d4ed8;
             --danger-color: #dc2626;
             --danger-hover: #b91c1c;
+            --success-color: #22c55e;
+            --warning-color: #f59e0b;
             --bg-color: #f3f4f6;
             --card-bg: #ffffff;
             --text-color: #1f2937;
@@ -31,7 +33,7 @@
         }
 
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
         }
 
@@ -59,6 +61,98 @@
             margin-bottom: 1.5rem;
         }
 
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #374151;
+        }
+
+        /* Model Selector */
+        .model-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .model-card {
+            border: 2px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .model-card:hover {
+            border-color: var(--primary-color);
+            background-color: #f8fafc;
+        }
+
+        .model-card.selected {
+            border-color: var(--primary-color);
+            background-color: #eff6ff;
+        }
+
+        .model-card.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .model-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .model-description {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 0.5rem;
+        }
+
+        .model-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #9ca3af;
+        }
+
+        .status-indicator.healthy {
+            background-color: var(--success-color);
+        }
+
+        .status-indicator.offline {
+            background-color: var(--danger-color);
+        }
+
+        .status-indicator.loading {
+            background-color: var(--warning-color);
+            animation: pulse 1.5s infinite;
+        }
+
+        .speed-badge {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            background-color: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .speed-badge.fast {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        /* Controls */
         .controls {
             display: flex;
             gap: 1rem;
@@ -111,6 +205,7 @@
             background-color: #d1d5db;
         }
 
+        /* Status */
         .status {
             display: flex;
             align-items: center;
@@ -127,7 +222,7 @@
         }
 
         .status-dot.connected {
-            background-color: #22c55e;
+            background-color: var(--success-color);
         }
 
         .status-dot.recording {
@@ -140,6 +235,24 @@
             50% { opacity: 0.5; }
         }
 
+        /* Visualizer */
+        .visualizer {
+            height: 60px;
+            background-color: #f9fafb;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .visualizer canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Transcription */
         .transcription-area {
             min-height: 300px;
             max-height: 500px;
@@ -162,31 +275,11 @@
             font-style: italic;
         }
 
-        .transcription-text .final {
-            color: var(--text-color);
-        }
-
         .info {
             font-size: 0.875rem;
             color: #6b7280;
             text-align: center;
             margin-top: 1rem;
-        }
-
-        .visualizer {
-            height: 60px;
-            background-color: #f9fafb;
-            border-radius: 0.5rem;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-
-        .visualizer canvas {
-            width: 100%;
-            height: 100%;
         }
 
         footer {
@@ -204,15 +297,42 @@
         footer a:hover {
             text-decoration: underline;
         }
+
+        /* Loading state */
+        .loading-spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid #e5e7eb;
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>ReazonSpeech リアルタイム音声認識</h1>
-            <p class="subtitle">reazonspeech-k2-v2 モデルによる日本語音声認識</p>
+            <p class="subtitle">日本語音声認識モデルを選択して文字起こし</p>
         </header>
 
+        <!-- Model Selector -->
+        <div class="card">
+            <h2 class="card-title">モデル選択</h2>
+            <div class="model-selector" id="modelSelector">
+                <div class="model-card loading">
+                    <div class="loading-spinner"></div>
+                    <span>モデル情報を読み込み中...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recording Controls -->
         <div class="card">
             <div class="status">
                 <div class="status-dot" id="statusDot"></div>
@@ -224,7 +344,7 @@
             </div>
 
             <div class="controls">
-                <button id="startBtn" class="btn-primary">
+                <button id="startBtn" class="btn-primary" disabled>
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
                         <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
@@ -244,6 +364,7 @@
             </div>
         </div>
 
+        <!-- Transcription Output -->
         <div class="card">
             <div class="transcription-area">
                 <div class="transcription-text" id="transcription">
@@ -256,7 +377,7 @@
         </div>
 
         <footer>
-            <p>Powered by <a href="https://research.reazon.jp/projects/ReazonSpeech/" target="_blank">ReazonSpeech</a> + <a href="https://github.com/k2-fsa/sherpa-onnx" target="_blank">sherpa-onnx</a></p>
+            <p>Powered by <a href="https://research.reazon.jp/projects/ReazonSpeech/" target="_blank">ReazonSpeech</a></p>
         </footer>
     </div>
 
