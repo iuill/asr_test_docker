@@ -9,8 +9,9 @@ WORKDIR /app
 COPY pyproject.toml /app/
 COPY src/ /app/src/
 
-# Install the application
-RUN pip install --no-cache-dir -e .
+# Install the application (--no-deps to avoid reinstalling onnxruntime CPU version)
+RUN pip install --no-cache-dir --no-deps -e . && \
+    pip install --no-cache-dir fastapi uvicorn websockets "numpy>=1.24.0,<2.0.0" huggingface-hub
 
 # Expose port
 EXPOSE 8000

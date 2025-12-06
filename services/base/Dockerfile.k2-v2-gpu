@@ -1,8 +1,16 @@
 # ReazonSpeech k2-v2 Base Image - GPU Version
-# Contains: Common base + sherpa-onnx
+# Contains: Common base + sherpa-onnx with CUDA support
 
 FROM reazonspeech-common-base:gpu
 
+# Install system dependencies required by sherpa-onnx
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libasound2 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install sherpa-onnx with CUDA support
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install sherpa-onnx
+# Pre-built CUDA wheels are available from k2-fsa.github.io
+# The +cuda version is built with SHERPA_ONNX_ENABLE_GPU=ON
+# Base image uses CUDA 11.8 + cuDNN 8, so use the +cuda version (not +cuda12.cudnn9)
+# Version must be specified with ==VERSION+cuda format
+RUN pip install --no-cache-dir "sherpa-onnx==1.12.18+cuda" -f https://k2-fsa.github.io/sherpa/onnx/cuda.html
