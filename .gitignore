@@ -209,3 +209,4 @@ __marimo__/
 # Model cache (keep .gitkeep files)
 cache/*/*
 !cache/*/.gitkeep
+credentials/*.json

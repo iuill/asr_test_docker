@@ -12,6 +12,7 @@ services:
       - k2-v2
       - espnet-v2
       - espnet-v2-onnx
+      - google-stt
     restart: unless-stopped
 
   # Web UI for CPU-only mode
@@ -25,6 +26,7 @@ services:
       - k2-v2-cpu
       - espnet-v2-cpu
       - espnet-v2-onnx-cpu
+      - google-stt
     profiles:
       - cpu
     restart: unless-stopped
@@ -156,6 +158,22 @@ services:
       - TORCH_HOME=/root/.cache/torch
     profiles:
       - cpu
+    restart: unless-stopped
+
+  # =============================================================================
+  # Google Speech-to-Text
+  # =============================================================================
+  google-stt:
+    build:
+      context: ./services/google-stt
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    volumes:
+      - ./credentials:/credentials:ro
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/credentials/google-stt-credentials.json
+      - LANGUAGE_CODE=ja-JP
     restart: unless-stopped
 
 volumes:

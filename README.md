@@ -9,8 +9,11 @@ ReazonSpeech モデルを使用したリアルタイム音声文字起こしシ�
 | [reazonspeech-k2-v2](https://huggingface.co/reazon-research/reazonspeech-k2-v2) | sherpa-onnx (Transducer) | 159M | 高速 |
 | [reazonspeech-espnet-v2](https://huggingface.co/reazon-research/reazonspeech-espnet-v2) | ESPnet (Conformer-Transducer) | 119M | 標準 |
 | reazonspeech-espnet-v2-onnx | ESPnet ONNX (Conformer-Transducer) | 119M | 高速 |
+| Google Speech-to-Text | Google Cloud API (Streaming) | - | 高速 |
 
 > **Note**: `espnet-v2-onnx` は `espnet-v2` と同じモデルをONNX形式に変換して使用するため、精度は同等で推論速度が向上します。
+
+> **Note**: `Google Speech-to-Text` はGoogle Cloud の有料APIを使用します。利用にはサービスアカウントキーが必要です。
 
 ## 要件定義
 
@@ -20,7 +23,7 @@ ReazonSpeech モデルを使用したリアルタイム音声文字起こしシ�
 |------|------|
 | 音声入力 | Windows マイクからのリアルタイム入力 |
 | 文字起こし | 発話後 1-2秒以内の擬似リアルタイム表示 |
-| モデル | reazonspeech-k2-v2 / reazonspeech-espnet-v2 / reazonspeech-espnet-v2-onnx |
+| モデル | reazonspeech-k2-v2 / reazonspeech-espnet-v2 / reazonspeech-espnet-v2-onnx / Google Speech-to-Text |
 | UI | Web UI（ブラウザベース） |
 | 実行環境 | Win11 + WSL2 + Docker |
 
@@ -54,16 +57,16 @@ ReazonSpeech モデルを使用したリアルタイム音声文字起こしシ�
 │  └──────────────┘  └─────────────────────────────────────┘  │
 └───────────────────────────┬─────────────────────────────────┘
                             │ WebSocket/HTTP
-        ┌───────────────────┼───────────────────┐
-        ▼                   ▼                   ▼
-┌───────────────┐   ┌───────────────┐   ┌───────────────┐
-│   k2-v2       │   │   espnet-v2   │   │ espnet-v2-onnx│
-│ (内部:8000)   │   │ (内部:8000)   │   │ (内部:8000)   │
-│               │   │               │   │               │
-│ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │
-│ - /health     │   │ - /health     │   │ - /health     │
-│ - /info       │   │ - /info       │   │ - /info       │
-└───────────────┘   └───────────────┘   └───────────────┘
+        ┌───────────────────┼───────────────────┬───────────────────┐
+        ▼                   ▼                   ▼                   ▼
+┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
+│   k2-v2       │   │   espnet-v2   │   │ espnet-v2-onnx│   │  google-stt   │
+│ (内部:8000)   │   │ (内部:8000)   │   │ (内部:8000)   │   │ (内部:8000)   │
+│               │   │               │   │               │   │               │
+│ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │
+│ - /health     │   │ - /health     │   │ - /health     │   │ - /health     │
+│ - /info       │   │ - /info       │   │ - /info       │   │ - /info       │
+└───────────────┘   └───────────────┘   └───────────────┘   └───────────────┘
 ```
 
 ### 音声処理フロー
@@ -89,6 +92,7 @@ ReazonSpeech モデルを使用したリアルタイム音声文字起こしシ�
 - WSL2
 - Docker Desktop（WSL2バックエンド）
 - NVIDIA GPU + NVIDIA Container Toolkit（GPU使用時）
+- Google Cloud サービスアカウントキー（Google Speech-to-Text使用時）
 
 ### インストール
 
@@ -97,6 +101,25 @@ ReazonSpeech モデルを使用したリアルタイム音声文字起こしシ�
 git clone https://github.com/iuill/reazonspeech-k2-v2_Docker.git
 cd reazonspeech-k2-v2_Docker
 ```
+
+### Google Speech-to-Text のセットアップ（オプション）
+
+Google Speech-to-Text を使用する場合は、以下の手順でセットアップします。
+
+1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクトを作成
+2. Speech-to-Text API を有効化
+3. サービスアカウントを作成し、キー（JSON）をダウンロード
+4. ダウンロードしたキーを `credentials/google-stt-credentials.json` に配置
+
+```bash
+# credentials ディレクトリを作成（存在しない場合）
+mkdir -p credentials
+
+# サービスアカウントキーを配置
+cp /path/to/your-service-account-key.json credentials/google-stt-credentials.json
+```
+
+> **Note**: `credentials/` ディレクトリは `.gitignore` に追加することを推奨します。
 
 ### ビルド
 
@@ -216,6 +239,12 @@ python -m src.main --device cpu  # または --device cuda
 - **フロントエンド**: HTML/JavaScript
 - **特徴**: ESPnetモデルをONNX形式に変換し、ONNX Runtimeで高速推論
 
+### google-stt
+- **音声認識**: [Google Cloud Speech-to-Text API](https://cloud.google.com/speech-to-text) (Streaming)
+- **サーバー**: FastAPI + WebSocket
+- **フロントエンド**: HTML/JavaScript
+- **特徴**: Google Cloud のストリーミングAPIを使用したリアルタイム音声認識（有料API）
+
 ### 共通
 - **コンテナ**: Docker
 
@@ -272,16 +301,24 @@ reazonspeech-k2-v2_Docker/
     │       ├── transcription_engine.py  # ESPnet ラッパー
     │       ├── audio_processor.py
     │       └── vad.py           # Silero VAD
-    └── espnet-v2-onnx/          # reazonspeech-espnet-v2 ONNX版（バックエンド）
-        ├── Dockerfile           # GPU版（ベースイメージ使用）
-        ├── Dockerfile.cpu       # CPU版（ベースイメージ使用）
-        ├── pyproject.toml
+    ├── espnet-v2-onnx/          # reazonspeech-espnet-v2 ONNX版（バックエンド）
+    │   ├── Dockerfile           # GPU版（ベースイメージ使用）
+    │   ├── Dockerfile.cpu       # CPU版（ベースイメージ使用）
+    │   ├── pyproject.toml
+    │   └── src/
+    │       ├── main.py          # エントリポイント
+    │       ├── server.py        # FastAPI WebSocket サーバー
+    │       ├── transcription_engine.py  # espnet_onnx ラッパー
+    │       ├── audio_processor.py
+    │       └── vad.py           # Silero VAD
+    └── google-stt/              # Google Speech-to-Text（バックエンド）
+        ├── Dockerfile
+        ├── requirements.txt
         └── src/
             ├── main.py          # エントリポイント
             ├── server.py        # FastAPI WebSocket サーバー
-            ├── transcription_engine.py  # espnet_onnx ラッパー
-            ├── audio_processor.py
-            └── vad.py           # Silero VAD
+            ├── transcription_engine.py  # Google STT ラッパー
+            └── audio_processor.py
 ```
 
 ## ライセンス
@@ -295,4 +332,5 @@ Apache License 2.0
 - [sherpa-onnx GitHub](https://github.com/k2-fsa/sherpa-onnx)
 - [ESPnet GitHub](https://github.com/espnet/espnet)
 - [espnet_onnx GitHub](https://github.com/espnet/espnet_onnx)
+- [Google Cloud Speech-to-Text](https://cloud.google.com/speech-to-text)
 - [iuill/WhisperLiveKit](https://github.com/iuill/WhisperLiveKit)（ベースプロジェクト）

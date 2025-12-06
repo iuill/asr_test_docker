@@ -43,6 +43,13 @@ MODELS: dict[str, ModelConfig] = {
         url=os.environ.get("ESPNET_V2_ONNX_URL", "http://espnet-v2-onnx:8000"),
         speed="fast",
     ),
+    "google-stt": ModelConfig(
+        id="google-stt",
+        name="Google Speech-to-Text",
+        description="Google Cloud Speech-to-Text API (Streaming)",
+        url=os.environ.get("GOOGLE_STT_URL", "http://google-stt:8000"),
+        speed="fast",
+    ),
 }
 
 # Default model to use
