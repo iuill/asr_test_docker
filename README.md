@@ -69,6 +69,44 @@ git clone https://github.com/iuill/reazonspeech-k2-v2_Docker.git
 cd reazonspeech-k2-v2_Docker
 ```
 
+### ビルド
+
+本プロジェクトは3層のベースイメージ構造を採用しており、2回目以降のビルドが高速化されます。
+
+```
+Layer 1: common-base        ← PyTorch + 共通依存（最も時間がかかる）
+Layer 2: k2-v2-base         ← + sherpa-onnx / espnet
+Layer 3: アプリイメージ      ← ソースコードのみ（高速）
+```
+
+#### 初回ビルド（ベースイメージの作成）
+
+```powershell
+# Windows (PowerShell)
+.\scripts\build-base-images.ps1 -Target gpu   # GPU版
+.\scripts\build-base-images.ps1 -Target cpu   # CPU版
+.\scripts\build-base-images.ps1 -Target all   # 両方
+```
+
+```bash
+# Linux / WSL
+./scripts/build-base-images.sh gpu   # GPU版
+./scripts/build-base-images.sh cpu   # CPU版
+./scripts/build-base-images.sh all   # 両方
+```
+
+#### アプリイメージのビルド
+
+```bash
+# ベースイメージ作成後に実行
+docker compose build
+```
+
+> **Note**: ソースコード変更時は `docker compose build` のみで高速にリビルドできます。
+> 依存関係を変更した場合は、ベースイメージの再ビルドが必要です。
+
+### 起動
+
 #### reazonspeech-k2-v2
 
 ```bash
@@ -146,10 +184,20 @@ reazonspeech-k2-v2_Docker/
 ├── README.md                    # このファイル
 ├── docker-compose.yml           # Docker Compose 設定（全サービス統括）
 ├── LICENSE
+├── scripts/
+│   ├── build-base-images.ps1    # ベースイメージビルド（Windows）
+│   └── build-base-images.sh     # ベースイメージビルド（Linux/WSL）
 └── services/
+    ├── base/                    # ベースイメージ定義
+    │   ├── Dockerfile.common-gpu     # 共通ベース（PyTorch + CUDA）
+    │   ├── Dockerfile.common-cpu     # 共通ベース（PyTorch CPU）
+    │   ├── Dockerfile.k2-v2-gpu      # k2-v2用（+ sherpa-onnx）
+    │   ├── Dockerfile.k2-v2-cpu
+    │   ├── Dockerfile.espnet-v2-gpu  # espnet用（+ espnet）
+    │   └── Dockerfile.espnet-v2-cpu
     ├── k2-v2/                   # reazonspeech-k2-v2 用
-    │   ├── Dockerfile           # GPU版
-    │   ├── Dockerfile.cpu       # CPU版
+    │   ├── Dockerfile           # GPU版（ベースイメージ使用）
+    │   ├── Dockerfile.cpu       # CPU版（ベースイメージ使用）
     │   ├── pyproject.toml
     │   └── src/
     │       ├── main.py          # エントリポイント
@@ -161,8 +209,8 @@ reazonspeech-k2-v2_Docker/
     │           ├── index.html
     │           └── app.js
     └── espnet-v2/               # reazonspeech-espnet-v2 用
-        ├── Dockerfile           # GPU版
-        ├── Dockerfile.cpu       # CPU版
+        ├── Dockerfile           # GPU版（ベースイメージ使用）
+        ├── Dockerfile.cpu       # CPU版（ベースイメージ使用）
         ├── pyproject.toml
         └── src/
             ├── main.py          # エントリポイント

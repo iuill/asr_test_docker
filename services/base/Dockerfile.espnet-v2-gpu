@@ -1,0 +1,27 @@
+# ReazonSpeech espnet-v2 Base Image - GPU Version
+# Contains: Common base + ESPnet + build tools
+
+FROM reazonspeech-common-base:gpu
+
+# Install additional system dependencies for ESPnet (build tools for pyworld)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libsndfile1 \
+    ffmpeg \
+    build-essential \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install ESPnet and related dependencies
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install \
+    espnet \
+    espnet_model_zoo
+
+# Install reazonspeech ESPnet ASR package
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install \
+    git+https://github.com/reazon-research/ReazonSpeech.git#subdirectory=pkg/espnet-asr
+
+# Install soundfile for audio processing
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install "soundfile>=0.12.0"

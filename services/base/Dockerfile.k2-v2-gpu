@@ -1,0 +1,8 @@
+# ReazonSpeech k2-v2 Base Image - GPU Version
+# Contains: Common base + sherpa-onnx
+
+FROM reazonspeech-common-base:gpu
+
+# Install sherpa-onnx with CUDA support
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install sherpa-onnx
