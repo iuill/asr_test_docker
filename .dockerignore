@@ -1,0 +1,54 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.eggs
+*.egg-info
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv
+.venv
+env
+.env
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.docker
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Tests
+tests/
+pytest.ini
+.pytest_cache
+
+# Cache
+.cache
+*.cache
+
+# Logs
+*.log
+logs/
+
+# Model files (downloaded at runtime)
+models/
+*.onnx
+*.bin

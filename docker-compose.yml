@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  # GPU version (default)
+  asr:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "13780:8000"
+    volumes:
+      # Cache model files on host
+      - model-cache:/root/.cache/huggingface
+    environment:
+      - HF_HOME=/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # CPU version (alternative)
+  asr-cpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    ports:
+      - "13780:8000"
+    volumes:
+      - model-cache:/root/.cache/huggingface
+    environment:
+      - HF_HOME=/root/.cache/huggingface
+    profiles:
+      - cpu
+    restart: unless-stopped
+
+volumes:
+  model-cache:
