@@ -18,26 +18,33 @@ function Build-GPU {
     Write-Host "Building GPU base images..." -ForegroundColor Cyan
     Write-Host "==========================================" -ForegroundColor Cyan
 
-    Write-Host "[1/3] Building common-base:gpu..." -ForegroundColor Yellow
+    Write-Host "[1/4] Building common-base:gpu..." -ForegroundColor Yellow
     docker build `
         -f "$ProjectRoot/services/base/Dockerfile.common-gpu" `
         -t reazonspeech-common-base:gpu `
         "$ProjectRoot"
     if ($LASTEXITCODE -ne 0) { throw "Failed to build common-base:gpu" }
 
-    Write-Host "[2/3] Building k2-v2-base:gpu..." -ForegroundColor Yellow
+    Write-Host "[2/4] Building k2-v2-base:gpu..." -ForegroundColor Yellow
     docker build `
         -f "$ProjectRoot/services/base/Dockerfile.k2-v2-gpu" `
         -t reazonspeech-k2-v2-base:gpu `
         "$ProjectRoot"
     if ($LASTEXITCODE -ne 0) { throw "Failed to build k2-v2-base:gpu" }
 
-    Write-Host "[3/3] Building espnet-v2-base:gpu..." -ForegroundColor Yellow
+    Write-Host "[3/4] Building espnet-v2-base:gpu..." -ForegroundColor Yellow
     docker build `
         -f "$ProjectRoot/services/base/Dockerfile.espnet-v2-gpu" `
         -t reazonspeech-espnet-v2-base:gpu `
         "$ProjectRoot"
     if ($LASTEXITCODE -ne 0) { throw "Failed to build espnet-v2-base:gpu" }
+
+    Write-Host "[4/4] Building espnet-v2-onnx-base:gpu..." -ForegroundColor Yellow
+    docker build `
+        -f "$ProjectRoot/services/base/Dockerfile.espnet-v2-onnx-gpu" `
+        -t reazonspeech-espnet-v2-onnx-base:gpu `
+        "$ProjectRoot"
+    if ($LASTEXITCODE -ne 0) { throw "Failed to build espnet-v2-onnx-base:gpu" }
 
     Write-Host "GPU base images built successfully!" -ForegroundColor Green
 }
@@ -47,26 +54,33 @@ function Build-CPU {
     Write-Host "Building CPU base images..." -ForegroundColor Cyan
     Write-Host "==========================================" -ForegroundColor Cyan
 
-    Write-Host "[1/3] Building common-base:cpu..." -ForegroundColor Yellow
+    Write-Host "[1/4] Building common-base:cpu..." -ForegroundColor Yellow
     docker build `
         -f "$ProjectRoot/services/base/Dockerfile.common-cpu" `
         -t reazonspeech-common-base:cpu `
         "$ProjectRoot"
     if ($LASTEXITCODE -ne 0) { throw "Failed to build common-base:cpu" }
 
-    Write-Host "[2/3] Building k2-v2-base:cpu..." -ForegroundColor Yellow
+    Write-Host "[2/4] Building k2-v2-base:cpu..." -ForegroundColor Yellow
     docker build `
         -f "$ProjectRoot/services/base/Dockerfile.k2-v2-cpu" `
         -t reazonspeech-k2-v2-base:cpu `
         "$ProjectRoot"
     if ($LASTEXITCODE -ne 0) { throw "Failed to build k2-v2-base:cpu" }
 
-    Write-Host "[3/3] Building espnet-v2-base:cpu..." -ForegroundColor Yellow
+    Write-Host "[3/4] Building espnet-v2-base:cpu..." -ForegroundColor Yellow
     docker build `
         -f "$ProjectRoot/services/base/Dockerfile.espnet-v2-cpu" `
         -t reazonspeech-espnet-v2-base:cpu `
         "$ProjectRoot"
     if ($LASTEXITCODE -ne 0) { throw "Failed to build espnet-v2-base:cpu" }
+
+    Write-Host "[4/4] Building espnet-v2-onnx-base:cpu..." -ForegroundColor Yellow
+    docker build `
+        -f "$ProjectRoot/services/base/Dockerfile.espnet-v2-onnx-cpu" `
+        -t reazonspeech-espnet-v2-onnx-base:cpu `
+        "$ProjectRoot"
+    if ($LASTEXITCODE -ne 0) { throw "Failed to build espnet-v2-onnx-base:cpu" }
 
     Write-Host "CPU base images built successfully!" -ForegroundColor Green
 }

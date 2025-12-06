@@ -81,7 +81,56 @@ services:
       - cpu
     restart: unless-stopped
 
+  # =============================================================================
+  # reazonspeech-espnet-v2-onnx (ESPnet ONNX based - High Performance)
+  # =============================================================================
+
+  # GPU version
+  espnet-v2-onnx:
+    build:
+      context: ./services/espnet-v2-onnx
+      dockerfile: Dockerfile
+    ports:
+      - "13782:8000"
+    volumes:
+      - espnet-v2-onnx-model-cache:/root/.cache/huggingface
+      - ./cache/espnet_onnx:/root/.cache/espnet_onnx
+      - espnet-v2-onnx-torch-cache:/root/.cache/torch
+    environment:
+      - HF_HOME=/root/.cache/huggingface
+      - ESPNET_ONNX_CACHE=/root/.cache/espnet_onnx
+      - TORCH_HOME=/root/.cache/torch
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # CPU version (alternative)
+  espnet-v2-onnx-cpu:
+    build:
+      context: ./services/espnet-v2-onnx
+      dockerfile: Dockerfile.cpu
+    ports:
+      - "13782:8000"
+    volumes:
+      - espnet-v2-onnx-model-cache:/root/.cache/huggingface
+      - ./cache/espnet_onnx:/root/.cache/espnet_onnx
+      - espnet-v2-onnx-torch-cache:/root/.cache/torch
+    environment:
+      - HF_HOME=/root/.cache/huggingface
+      - ESPNET_ONNX_CACHE=/root/.cache/espnet_onnx
+      - TORCH_HOME=/root/.cache/torch
+    profiles:
+      - cpu
+    restart: unless-stopped
+
 volumes:
   k2-v2-model-cache:
   espnet-v2-model-cache:
   espnet-v2-torch-cache:
+  espnet-v2-onnx-model-cache:
+  espnet-v2-onnx-torch-cache:

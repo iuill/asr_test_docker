@@ -4,10 +4,13 @@ ReazonSpeech モデルを使用したリアルタイム音声文字起こしシ�
 
 ## 対応モデル
 
-| モデル | アーキテクチャ | パラメータ数 | 状態 |
-|--------|---------------|-------------|------|
-| [reazonspeech-k2-v2](https://huggingface.co/reazon-research/reazonspeech-k2-v2) | sherpa-onnx (Transducer) | 159M | ✅ 実装済み |
-| [reazonspeech-espnet-v2](https://huggingface.co/reazon-research/reazonspeech-espnet-v2) | ESPnet (Conformer-Transducer) | 119M | ✅ 実装済み |
+| モデル | アーキテクチャ | パラメータ数 | 速度 | 状態 |
+|--------|---------------|-------------|------|------|
+| [reazonspeech-k2-v2](https://huggingface.co/reazon-research/reazonspeech-k2-v2) | sherpa-onnx (Transducer) | 159M | 高速 | ✅ 実装済み |
+| [reazonspeech-espnet-v2](https://huggingface.co/reazon-research/reazonspeech-espnet-v2) | ESPnet (Conformer-Transducer) | 119M | 標準 | ✅ 実装済み |
+| reazonspeech-espnet-v2-onnx | ESPnet ONNX (Conformer-Transducer) | 119M | 高速 | ✅ 実装済み |
+
+> **Note**: `espnet-v2-onnx` は `espnet-v2` と同じモデルをONNX形式に変換して使用するため、精度は同等で推論速度が向上します。
 
 ## 要件定義
 
@@ -127,6 +130,18 @@ docker compose up espnet-v2
 docker compose --profile cpu up espnet-v2-cpu
 ```
 
+#### reazonspeech-espnet-v2-onnx（高速版）
+
+```bash
+# GPU版（推奨）
+docker compose up espnet-v2-onnx
+
+# CPU版
+docker compose --profile cpu up espnet-v2-onnx-cpu
+```
+
+> **Note**: 初回起動時にESPnetモデルをONNX形式にエクスポートするため、数分かかります。2回目以降はキャッシュされたONNXモデルが使用されます。
+
 ### 使用方法
 
 1. Docker コンテナを起動
@@ -138,6 +153,7 @@ docker compose --profile cpu up espnet-v2-cpu
 |---------|--------|-----|
 | k2-v2 | 13780 | http://localhost:13780 |
 | espnet-v2 | 13781 | http://localhost:13781 |
+| espnet-v2-onnx | 13782 | http://localhost:13782 |
 
 ### ローカル開発（Docker なし）
 
@@ -174,6 +190,13 @@ python -m src.main --device cpu  # または --device cuda
 - **サーバー**: FastAPI + WebSocket
 - **フロントエンド**: HTML/JavaScript
 
+### espnet-v2-onnx
+- **音声認識**: [reazonspeech-espnet-v2](https://huggingface.co/reazon-research/reazonspeech-espnet-v2) + [espnet_onnx](https://github.com/espnet/espnet_onnx)
+- **VAD**: Silero VAD
+- **サーバー**: FastAPI + WebSocket
+- **フロントエンド**: HTML/JavaScript
+- **特徴**: ESPnetモデルをONNX形式に変換し、ONNX Runtimeで高速推論
+
 ### 共通
 - **コンテナ**: Docker
 
@@ -194,7 +217,9 @@ reazonspeech-k2-v2_Docker/
     │   ├── Dockerfile.k2-v2-gpu      # k2-v2用（+ sherpa-onnx）
     │   ├── Dockerfile.k2-v2-cpu
     │   ├── Dockerfile.espnet-v2-gpu  # espnet用（+ espnet）
-    │   └── Dockerfile.espnet-v2-cpu
+    │   ├── Dockerfile.espnet-v2-cpu
+    │   ├── Dockerfile.espnet-v2-onnx-gpu  # espnet-onnx用（+ espnet_onnx）
+    │   └── Dockerfile.espnet-v2-onnx-cpu
     ├── k2-v2/                   # reazonspeech-k2-v2 用
     │   ├── Dockerfile           # GPU版（ベースイメージ使用）
     │   ├── Dockerfile.cpu       # CPU版（ベースイメージ使用）
@@ -208,14 +233,27 @@ reazonspeech-k2-v2_Docker/
     │       └── web/
     │           ├── index.html
     │           └── app.js
-    └── espnet-v2/               # reazonspeech-espnet-v2 用
+    ├── espnet-v2/               # reazonspeech-espnet-v2 用
+    │   ├── Dockerfile           # GPU版（ベースイメージ使用）
+    │   ├── Dockerfile.cpu       # CPU版（ベースイメージ使用）
+    │   ├── pyproject.toml
+    │   └── src/
+    │       ├── main.py          # エントリポイント
+    │       ├── server.py        # FastAPI WebSocket サーバー
+    │       ├── transcription_engine.py  # ESPnet ラッパー
+    │       ├── audio_processor.py
+    │       ├── vad.py           # Silero VAD
+    │       └── web/
+    │           ├── index.html
+    │           └── app.js
+    └── espnet-v2-onnx/          # reazonspeech-espnet-v2 ONNX版（高速）
         ├── Dockerfile           # GPU版（ベースイメージ使用）
         ├── Dockerfile.cpu       # CPU版（ベースイメージ使用）
         ├── pyproject.toml
         └── src/
             ├── main.py          # エントリポイント
             ├── server.py        # FastAPI WebSocket サーバー
-            ├── transcription_engine.py  # ESPnet ラッパー
+            ├── transcription_engine.py  # espnet_onnx ラッパー
             ├── audio_processor.py
             ├── vad.py           # Silero VAD
             └── web/
@@ -233,4 +271,5 @@ Apache License 2.0
 - [ReazonSpeech GitHub](https://github.com/reazon-research/reazonspeech)
 - [sherpa-onnx GitHub](https://github.com/k2-fsa/sherpa-onnx)
 - [ESPnet GitHub](https://github.com/espnet/espnet)
+- [espnet_onnx GitHub](https://github.com/espnet/espnet_onnx)
 - [iuill/WhisperLiveKit](https://github.com/iuill/WhisperLiveKit)（ベースプロジェクト）

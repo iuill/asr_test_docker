@@ -1,0 +1,39 @@
+# ReazonSpeech espnet-v2-onnx Base Image - CPU Version
+# Contains: Common base + espnet_onnx + ESPnet (for model export) + ONNX Runtime CPU
+
+FROM reazonspeech-common-base:cpu
+
+# Install additional system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libsndfile1 \
+    ffmpeg \
+    build-essential \
+    g++ \
+    git \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install ONNX Runtime (CPU version is included with espnet-onnx)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install \
+    onnxruntime>=1.16.0
+
+# Install espnet_onnx from GitHub
+# Note: espnet and espnet_model_zoo are needed for the initial model export
+# Using --no-cache-dir to ensure fresh install from GitHub
+RUN pip install --no-cache-dir \
+    git+https://github.com/espnet/espnet_onnx.git \
+    espnet \
+    espnet_model_zoo \
+    onnx
+
+# Fix: convert_map.yml may be missing from the package, download it manually
+RUN ESPNET_ONNX_DIR=$(python -c "import espnet_onnx; import os; print(os.path.dirname(espnet_onnx.__file__))") && \
+    if [ ! -f "${ESPNET_ONNX_DIR}/export/convert_map.yml" ]; then \
+        curl -sL "https://raw.githubusercontent.com/espnet/espnet_onnx/master/espnet_onnx/export/convert_map.yml" \
+            -o "${ESPNET_ONNX_DIR}/export/convert_map.yml"; \
+    fi
+
+# Install soundfile for audio processing
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install "soundfile>=0.12.0"
