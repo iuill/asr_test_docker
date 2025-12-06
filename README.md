@@ -1,6 +1,6 @@
-# ReazonSpeech Docker
+# asr test docker
 
-ReazonSpeech モデルを使用したリアルタイム音声文字起こしシステム
+音声文字起こしモデルを使用したリアルタイム音声文字起こしシステム
 
 ## 対応モデル
 
@@ -98,8 +98,8 @@ ReazonSpeech モデルを使用したリアルタイム音声文字起こしシ�
 
 ```bash
 # リポジトリをクローン
-git clone https://github.com/iuill/reazonspeech-k2-v2_Docker.git
-cd reazonspeech-k2-v2_Docker
+git clone https://github.com/iuill/asr_test_docker.git
+cd asr_test_docker
 ```
 
 ### Google Speech-to-Text のセットアップ（オプション）
@@ -251,7 +251,7 @@ python -m src.main --device cpu  # または --device cuda
 ## プロジェクト構成
 
 ```
-reazonspeech-k2-v2_Docker/
+asr_test_docker/
 ├── README.md                    # このファイル
 ├── docker-compose.yml           # Docker Compose 設定（全サービス統括）
 ├── LICENSE
