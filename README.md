@@ -1,6 +1,13 @@
-# reazonspeech-k2-v2_Docker
+# ReazonSpeech Docker
 
-reazonspeech-k2-v2 を使用したリアルタイム音声文字起こしシステム
+ReazonSpeech モデルを使用したリアルタイム音声文字起こしシステム
+
+## 対応モデル
+
+| モデル | アーキテクチャ | 状態 |
+|--------|---------------|------|
+| [reazonspeech-k2-v2](https://huggingface.co/reazon-research/reazonspeech-k2-v2) | sherpa-onnx (Transducer) | ✅ 実装済み |
+| [reazonspeech-espnet-v2](https://huggingface.co/reazon-research/reazonspeech-espnet-v2) | ESPnet | 🚧 実装予定 |
 
 ## 要件定義
 
@@ -56,33 +63,40 @@ reazonspeech-k2-v2 を使用したリアルタイム音声文字起こしシス�
 
 ### インストール
 
-#### GPU版（推奨）
-
 ```bash
 # リポジトリをクローン
 git clone https://github.com/iuill/reazonspeech-k2-v2_Docker.git
 cd reazonspeech-k2-v2_Docker
-
-# Docker イメージをビルド
-docker compose build
-
-# 起動
-docker compose up
 ```
 
-#### CPU版
+#### reazonspeech-k2-v2
 
 ```bash
-# CPU版でビルド・起動
-docker compose --profile cpu up asr-cpu
+# GPU版（推奨）
+docker compose up k2-v2
+
+# CPU版
+docker compose --profile cpu up k2-v2-cpu
+```
+
+#### reazonspeech-espnet-v2（実装予定）
+
+```bash
+# GPU版
+docker compose up espnet-v2
 ```
 
 ### 使用方法
 
 1. Docker コンテナを起動
-2. ブラウザで `http://localhost:8000` にアクセス
+2. ブラウザで `http://localhost:13780` にアクセス（k2-v2の場合）
 3. マイクのアクセスを許可
 4. 「開始」ボタンをクリックして文字起こし開始
+
+| サービス | ポート |
+|---------|--------|
+| k2-v2 | 13780 |
+| espnet-v2 | 13781（予定） |
 
 ### ローカル開発（Docker なし）
 
@@ -97,7 +111,8 @@ pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
 # または GPU版（CUDA 11.8）
 pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu118
 
-# 依存関係をインストール
+# k2-v2 の依存関係をインストール
+cd services/k2-v2
 pip install -e .
 
 # サーバーを起動
@@ -116,22 +131,25 @@ python -m src.main --device cpu  # または --device cuda
 
 ```
 reazonspeech-k2-v2_Docker/
-├── README.md                # このファイル
-├── Dockerfile               # GPU版 Docker イメージ
-├── Dockerfile.cpu           # CPU版 Docker イメージ
-├── docker-compose.yml       # Docker Compose 設定
-├── pyproject.toml           # Python プロジェクト設定
-├── requirements.txt         # 依存関係
-└── src/
-    ├── __init__.py
-    ├── main.py              # エントリポイント
-    ├── server.py            # FastAPI WebSocket サーバー
-    ├── transcription_engine.py  # sherpa-onnx ラッパー
-    ├── audio_processor.py   # オーディオ処理
-    ├── vad.py               # Silero VAD
-    └── web/
-        ├── index.html       # Web UI
-        └── app.js           # クライアント JavaScript
+├── README.md                    # このファイル
+├── docker-compose.yml           # Docker Compose 設定（全サービス統括）
+├── LICENSE
+└── services/
+    ├── k2-v2/                   # reazonspeech-k2-v2 用
+    │   ├── Dockerfile           # GPU版
+    │   ├── Dockerfile.cpu       # CPU版
+    │   ├── pyproject.toml
+    │   └── src/
+    │       ├── main.py          # エントリポイント
+    │       ├── server.py        # FastAPI WebSocket サーバー
+    │       ├── transcription_engine.py  # sherpa-onnx ラッパー
+    │       ├── audio_processor.py
+    │       ├── vad.py           # Silero VAD
+    │       └── web/
+    │           ├── index.html
+    │           └── app.js
+    └── espnet-v2/               # reazonspeech-espnet-v2 用（実装予定）
+        └── .gitkeep
 ```
 
 ## ライセンス
