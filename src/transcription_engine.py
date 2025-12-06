@@ -87,10 +87,11 @@ class TranscriptionEngine:
         model_dir = Path(self.model_dir)
         model_dir.mkdir(parents=True, exist_ok=True)
 
+        # Actual file names in the HuggingFace repository
         files = {
-            "encoder": "encoder.onnx",
-            "decoder": "decoder.onnx",
-            "joiner": "joiner.onnx",
+            "encoder": "encoder-epoch-99-avg-1.onnx",
+            "decoder": "decoder-epoch-99-avg-1.onnx",
+            "joiner": "joiner-epoch-99-avg-1.onnx",
             "tokens": "tokens.txt",
         }
 
@@ -103,7 +104,6 @@ class TranscriptionEngine:
                     repo_id=MODEL_REPO,
                     filename=filename,
                     local_dir=str(model_dir),
-                    local_dir_use_symlinks=False,
                 )
             paths[key] = str(local_path)
 
