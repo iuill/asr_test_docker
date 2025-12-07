@@ -13,7 +13,7 @@ from .server import create_app
 def setup_logging():
     """Set up logging configuration."""
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 

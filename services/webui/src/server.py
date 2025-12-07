@@ -209,6 +209,7 @@ async def proxy_backend_to_client(
             if isinstance(message, bytes):
                 await client_ws.send_bytes(message)
             else:
+                logger.debug(f"Proxying to client: {message[:200] if len(message) > 200 else message}")
                 await client_ws.send_text(message)
 
     except ConnectionClosed:

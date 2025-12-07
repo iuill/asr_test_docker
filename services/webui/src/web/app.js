@@ -555,8 +555,12 @@ class ASRClient {
 
         const el = document.getElementById(`transcription-${modelId}`);
         if (el) {
-            el.innerHTML = this.buildTranscriptionHtml(conn);
+            const html = this.buildTranscriptionHtml(conn);
+            console.log(`Updating ${modelId}: partialText='${conn.partialText}', segments=${conn.segments.length}, html length=${html.length}`);
+            el.innerHTML = html;
             el.scrollTop = el.scrollHeight;
+        } else {
+            console.warn(`Element not found: transcription-${modelId}`);
         }
 
         // Update second textbox for Google STT (result_index=1)

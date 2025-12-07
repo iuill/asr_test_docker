@@ -125,7 +125,7 @@ class OpenAISTTEngine:
                     "type": "server_vad",
                     "threshold": 0.5,
                     "prefix_padding_ms": 300,
-                    "silence_duration_ms": 500,
+                    "silence_duration_ms": 150,
                 },
             },
         }
@@ -171,6 +171,9 @@ class OpenAISTTEngine:
                     data = json.loads(message)
                     event_type = data.get("type", "")
 
+                    # Debug: log all received events
+                    logger.debug(f"Received event: {event_type}, data: {json.dumps(data, ensure_ascii=False)[:500]}")
+
                     if event_type == "error":
                         error_msg = data.get("error", {}).get("message", "Unknown error")
                         logger.error(f"OpenAI API error: {error_msg}")
@@ -188,8 +191,10 @@ class OpenAISTTEngine:
                         # Partial transcription update
                         delta_text = data.get("delta", "")
                         self._current_text += delta_text
+                        logger.debug(f"Delta received: '{delta_text}', current_text: '{self._current_text}'")
 
                         if self._result_queue and self._current_text.strip():
+                            logger.info(f"Sending partial result: '{self._current_text}'")
                             await self._result_queue.put(
                                 TranscriptionResult(
                                     text=self._current_text,
@@ -198,6 +203,8 @@ class OpenAISTTEngine:
                                     is_partial=True,
                                 )
                             )
+                        else:
+                            logger.warning(f"Cannot send partial: queue={self._result_queue is not None}, text='{self._current_text}'")
 
                     elif event_type == "conversation.item.input_audio_transcription.completed":
                         # Final transcription

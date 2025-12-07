@@ -202,6 +202,7 @@ async def websocket_asr(websocket: WebSocket):
             try:
                 while True:
                     result = await result_queue.get()
+                    logger.info(f"Got result from queue: text='{result.text}', is_partial={result.is_partial}")
                     response = {
                         "type": "transcription",
                         "text": result.text,
@@ -214,6 +215,7 @@ async def websocket_asr(websocket: WebSocket):
                     }
                     if result.speaker_tag > 0:
                         response["speaker_tag"] = result.speaker_tag
+                    logger.info(f"Sending to WebSocket: {response}")
                     await websocket.send_json(response)
             except asyncio.CancelledError:
                 pass
