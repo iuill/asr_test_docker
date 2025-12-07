@@ -50,6 +50,13 @@ MODELS: dict[str, ModelConfig] = {
         url=os.environ.get("GOOGLE_STT_URL", "http://google-stt:8000"),
         speed="fast",
     ),
+    "openai-stt": ModelConfig(
+        id="openai-stt",
+        name="OpenAI gpt-4o-transcribe",
+        description="OpenAI Realtime API (gpt-4o-transcribe), 高精度音声認識",
+        url=os.environ.get("OPENAI_STT_URL", "http://openai-stt:8000"),
+        speed="fast",
+    ),
 }
 
 # Default model to use

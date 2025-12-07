@@ -13,6 +13,7 @@ services:
       - espnet-v2
       - espnet-v2-onnx
       - google-stt
+      - openai-stt
     restart: unless-stopped
 
   # Web UI for CPU-only mode
@@ -27,6 +28,7 @@ services:
       - espnet-v2-cpu
       - espnet-v2-onnx-cpu
       - google-stt
+      - openai-stt
     profiles:
       - cpu
     restart: unless-stopped
@@ -177,6 +179,21 @@ services:
       - ENABLE_PUNCTUATION=true
       - ENABLE_DIARIZATION=true
       - DIARIZATION_SPEAKER_COUNT=2
+    restart: unless-stopped
+
+  # =============================================================================
+  # OpenAI Speech-to-Text (gpt-4o-transcribe)
+  # =============================================================================
+  openai-stt:
+    build:
+      context: ./services/openai-stt
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=gpt-4o-transcribe
+      - LANGUAGE_CODE=ja
     restart: unless-stopped
 
 volumes:

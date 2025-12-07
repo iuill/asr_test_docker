@@ -10,10 +10,13 @@
 | [reazonspeech-espnet-v2](https://huggingface.co/reazon-research/reazonspeech-espnet-v2) | ESPnet (Conformer-Transducer) | 119M | 標準 |
 | reazonspeech-espnet-v2-onnx | ESPnet ONNX (Conformer-Transducer) | 119M | 高速 |
 | Google Speech-to-Text | Google Cloud API (Streaming) | - | 高速 |
+| OpenAI gpt-4o-transcribe | OpenAI Realtime API | - | 高速 |
 
 > **Note**: `espnet-v2-onnx` は `espnet-v2` と同じモデルをONNX形式に変換して使用するため、精度は同等で推論速度が向上します。
 
 > **Note**: `Google Speech-to-Text` はGoogle Cloud の有料APIを使用します。利用にはサービスアカウントキーが必要です。
+
+> **Note**: `OpenAI gpt-4o-transcribe` はOpenAI の有料APIを使用します。利用にはAPIキーが必要です。
 
 ## 要件定義
 
@@ -23,7 +26,7 @@
 |------|------|
 | 音声入力 | Windows マイクからのリアルタイム入力 |
 | 文字起こし | 発話後 1-2秒以内の擬似リアルタイム表示 |
-| モデル | reazonspeech-k2-v2 / reazonspeech-espnet-v2 / reazonspeech-espnet-v2-onnx / Google Speech-to-Text |
+| モデル | reazonspeech-k2-v2 / reazonspeech-espnet-v2 / reazonspeech-espnet-v2-onnx / Google Speech-to-Text / OpenAI gpt-4o-transcribe |
 | UI | Web UI（ブラウザベース） |
 | 実行環境 | Win11 + WSL2 + Docker |
 
@@ -57,16 +60,16 @@
 │  └──────────────┘  └─────────────────────────────────────┘  │
 └───────────────────────────┬─────────────────────────────────┘
                             │ WebSocket/HTTP
-        ┌───────────────────┼───────────────────┬───────────────────┐
-        ▼                   ▼                   ▼                   ▼
-┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
-│   k2-v2       │   │   espnet-v2   │   │ espnet-v2-onnx│   │  google-stt   │
-│ (内部:8000)   │   │ (内部:8000)   │   │ (内部:8000)   │   │ (内部:8000)   │
-│               │   │               │   │               │   │               │
-│ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │
-│ - /health     │   │ - /health     │   │ - /health     │   │ - /health     │
-│ - /info       │   │ - /info       │   │ - /info       │   │ - /info       │
-└───────────────┘   └───────────────┘   └───────────────┘   └───────────────┘
+        ┌───────────────────┼───────────────────┬───────────────────┬───────────────────┐
+        ▼                   ▼                   ▼                   ▼                   ▼
+┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
+│   k2-v2       │   │   espnet-v2   │   │ espnet-v2-onnx│   │  google-stt   │   │  openai-stt   │
+│ (内部:8000)   │   │ (内部:8000)   │   │ (内部:8000)   │   │ (内部:8000)   │   │ (内部:8000)   │
+│               │   │               │   │               │   │               │   │               │
+│ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │
+│ - /health     │   │ - /health     │   │ - /health     │   │ - /health     │   │ - /health     │
+│ - /info       │   │ - /info       │   │ - /info       │   │ - /info       │   │ - /info       │
+└───────────────┘   └───────────────┘   └───────────────┘   └───────────────┘   └───────────────┘
 ```
 
 ### 音声処理フロー
@@ -93,6 +96,7 @@
 - Docker Desktop（WSL2バックエンド）
 - NVIDIA GPU + NVIDIA Container Toolkit（GPU使用時）
 - Google Cloud サービスアカウントキー（Google Speech-to-Text使用時）
+- OpenAI APIキー（OpenAI gpt-4o-transcribe使用時）
 
 ### インストール
 
@@ -120,6 +124,24 @@ cp /path/to/your-service-account-key.json credentials/google-stt-credentials.jso
 ```
 
 > **Note**: `credentials/` ディレクトリは `.gitignore` に追加することを推奨します。
+
+### OpenAI gpt-4o-transcribe のセットアップ（オプション）
+
+OpenAI gpt-4o-transcribe を使用する場合は、以下の手順でセットアップします。
+
+1. [OpenAI Platform](https://platform.openai.com/) でアカウントを作成
+2. APIキーを発行
+3. `.env` ファイルを作成しAPIキーを設定
+
+```bash
+# .env.sample をコピー
+cp .env.sample .env
+
+# .env を編集してAPIキーを設定
+# OPENAI_API_KEY=sk-your-api-key-here
+```
+
+> **Note**: `.env` ファイルは `.gitignore` に追加されているため、リポジトリにコミットされません。
 
 ### ビルド
 
@@ -245,6 +267,12 @@ python -m src.main --device cpu  # または --device cuda
 - **フロントエンド**: HTML/JavaScript
 - **特徴**: Google Cloud のストリーミングAPIを使用したリアルタイム音声認識（有料API）
 
+### openai-stt
+- **音声認識**: [OpenAI Realtime API](https://platform.openai.com/docs/models/gpt-4o-transcribe) (gpt-4o-transcribe)
+- **サーバー**: FastAPI + WebSocket
+- **フロントエンド**: HTML/JavaScript
+- **特徴**: OpenAI のRealtime APIを使用した高精度リアルタイム音声認識（有料API）
+
 ### 共通
 - **コンテナ**: Docker
 
@@ -311,13 +339,21 @@ asr_test_docker/
     │       ├── transcription_engine.py  # espnet_onnx ラッパー
     │       ├── audio_processor.py
     │       └── vad.py           # Silero VAD
-    └── google-stt/              # Google Speech-to-Text（バックエンド）
+    ├── google-stt/              # Google Speech-to-Text（バックエンド）
+    │   ├── Dockerfile
+    │   ├── requirements.txt
+    │   └── src/
+    │       ├── main.py          # エントリポイント
+    │       ├── server.py        # FastAPI WebSocket サーバー
+    │       ├── transcription_engine.py  # Google STT ラッパー
+    │       └── audio_processor.py
+    └── openai-stt/              # OpenAI gpt-4o-transcribe（バックエンド）
         ├── Dockerfile
         ├── requirements.txt
         └── src/
             ├── main.py          # エントリポイント
             ├── server.py        # FastAPI WebSocket サーバー
-            ├── transcription_engine.py  # Google STT ラッパー
+            ├── transcription_engine.py  # OpenAI Realtime API ラッパー
             └── audio_processor.py
 ```
 
@@ -333,4 +369,5 @@ Apache License 2.0
 - [ESPnet GitHub](https://github.com/espnet/espnet)
 - [espnet_onnx GitHub](https://github.com/espnet/espnet_onnx)
 - [Google Cloud Speech-to-Text](https://cloud.google.com/speech-to-text)
+- [OpenAI Realtime API](https://platform.openai.com/docs/models/gpt-4o-transcribe)
 - [iuill/WhisperLiveKit](https://github.com/iuill/WhisperLiveKit)（ベースプロジェクト）
