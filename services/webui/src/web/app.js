@@ -214,6 +214,17 @@ class ASRClient {
                         transcriptionHtml = this.buildTranscriptionHtml(connection);
                     }
 
+                    // Add second textbox for Google STT result_index=1
+                    const showSecondBox = modelId === 'google-stt';
+                    const secondBoxHtml = showSecondBox ? `
+                            <div class="transcription-area transcription-area-secondary">
+                                <div class="transcription-label">次の発話（プレビュー）</div>
+                                <div class="transcription-text transcription-text-secondary" id="transcription-${modelId}-next">
+                                    ${connection?.partialText2 ? `<span class="partial">${connection.partialText2}</span>` : ''}
+                                </div>
+                            </div>
+                    ` : '';
+
                     return `
                         <div class="result-card" data-model="${modelId}">
                             <div class="result-header">
@@ -225,6 +236,7 @@ class ASRClient {
                                     ${transcriptionHtml}
                                 </div>
                             </div>
+                            ${secondBoxHtml}
                         </div>
                     `;
                 }).join('')}
@@ -351,6 +363,8 @@ class ASRClient {
                 segments: [],      // Array of { text, speakerTag }
                 partialText: '',
                 partialSpeaker: 0,
+                partialText2: '',  // For Google STT result_index=1 (next utterance preview)
+                partialSpeaker2: 0,
                 status: 'connecting'
             });
 
@@ -450,17 +464,24 @@ class ASRClient {
                 });
                 conn.partialText = '';
                 conn.partialSpeaker = 0;
+                // Clear next utterance preview when current is finalized
+                if (modelId === 'google-stt') {
+                    conn.partialText2 = '';
+                    conn.partialSpeaker2 = 0;
+                }
             } else {
                 // Filter interim results by result_index (Google STT only)
                 if (modelId === 'google-stt') {
                     const resultIndex = data.provider_info?.result_index ?? 0;
-                    // Only show result_index=0 (first/current utterance)
-                    // result_index=0 always has high stability (~0.9)
                     if (resultIndex === 0) {
+                        // result_index=0: current utterance (high stability ~0.9)
                         conn.partialText = data.text;
                         conn.partialSpeaker = speakerTag;
+                    } else if (resultIndex === 1) {
+                        // result_index=1: next utterance preview (unstable)
+                        conn.partialText2 = data.text;
+                        conn.partialSpeaker2 = speakerTag;
                     }
-                    // result_index > 0: unstable next utterance, don't update
                 } else {
                     conn.partialText = data.text;
                     conn.partialSpeaker = speakerTag;
@@ -536,6 +557,14 @@ class ASRClient {
         if (el) {
             el.innerHTML = this.buildTranscriptionHtml(conn);
             el.scrollTop = el.scrollHeight;
+        }
+
+        // Update second textbox for Google STT (result_index=1)
+        if (modelId === 'google-stt') {
+            const el2 = document.getElementById(`transcription-${modelId}-next`);
+            if (el2) {
+                el2.innerHTML = conn.partialText2 ? `<span class="partial">${conn.partialText2}</span>` : '';
+            }
         }
     }
 
@@ -630,6 +659,8 @@ class ASRClient {
             conn.segments = [];
             conn.partialText = '';
             conn.partialSpeaker = 0;
+            conn.partialText2 = '';
+            conn.partialSpeaker2 = 0;
         }
 
         // Also clear for non-connected but selected models
