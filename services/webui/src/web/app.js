@@ -51,10 +51,32 @@ class ASRClient {
         this.sampleRate = 16000;
         this.bufferSize = 4096;
 
+        // Modal elements
+        this.modalOverlay = document.getElementById('fullTextModal');
+        this.modalTitle = document.getElementById('modalTitle');
+        this.modalTranscription = document.getElementById('modalTranscription');
+        this.modalClose = document.getElementById('modalClose');
+
+        // Number of recent segments to show in compact view
+        this.recentSegmentsCount = 3;
+
         // Bind event handlers
         this.startBtn.addEventListener('click', () => this.start());
         this.stopBtn.addEventListener('click', () => this.stop());
         this.clearBtn.addEventListener('click', () => this.clear());
+
+        // Modal event handlers
+        this.modalClose.addEventListener('click', () => this.closeModal());
+        this.modalOverlay.addEventListener('click', (e) => {
+            if (e.target === this.modalOverlay) {
+                this.closeModal();
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeModal();
+            }
+        });
 
         // Initialize
         this.setupVisualizer();
@@ -74,11 +96,7 @@ class ASRClient {
 
             this.models = data.models;
 
-            // Select default model initially
-            const defaultModel = this.models.find(m => m.id === data.default);
-            if (defaultModel && defaultModel.status === 'healthy' && defaultModel.model_loaded) {
-                this.selectedModels.add(data.default);
-            }
+            // No model selected initially - user must select manually
 
             this.renderModelSelector();
             this.renderResultsArea();
@@ -208,10 +226,10 @@ class ASRClient {
                         : '待機中';
                     const statusClass = connection?.status || '';
 
-                    // Build initial transcription HTML
+                    // Build initial transcription HTML (compact view with recent segments)
                     let transcriptionHtml = '';
                     if (connection) {
-                        transcriptionHtml = this.buildTranscriptionHtml(connection);
+                        transcriptionHtml = this.buildRecentTranscriptionHtml(connection);
                     }
 
                     // Add second textbox for Google STT result_index=1
@@ -232,6 +250,7 @@ class ASRClient {
                                 <span class="result-status ${statusClass}">${statusText}</span>
                             </div>
                             <div class="transcription-area">
+                                <button class="full-text-btn" onclick="window.asrClient.openFullText('${modelId}')">全文表示</button>
                                 <div class="transcription-text" id="transcription-${modelId}">
                                     ${transcriptionHtml}
                                 </div>
@@ -514,7 +533,7 @@ class ASRClient {
     }
 
     /**
-     * Build HTML for transcription with speaker colors
+     * Build HTML for transcription with speaker colors (full text)
      */
     buildTranscriptionHtml(conn) {
         let html = '';
@@ -547,6 +566,67 @@ class ASRClient {
     }
 
     /**
+     * Build HTML for recent transcription only (compact view)
+     */
+    buildRecentTranscriptionHtml(conn) {
+        let html = '';
+        let lastSpeaker = 0;
+
+        // Get only the last N segments
+        const recentSegments = conn.segments.slice(-this.recentSegmentsCount);
+
+        for (const segment of recentSegments) {
+            if (segment.speakerTag > 0 && segment.speakerTag !== lastSpeaker) {
+                const color = this.getSpeakerColor(segment.speakerTag);
+                html += `<span class="speaker-label" style="color: ${color};">[${this.getSpeakerLabel(segment.speakerTag)}]</span> `;
+                lastSpeaker = segment.speakerTag;
+            }
+
+            if (segment.speakerTag > 0) {
+                const color = this.getSpeakerColor(segment.speakerTag);
+                html += `<span class="speaker-text" style="color: ${color};">${segment.text}</span>`;
+            } else {
+                html += segment.text;
+            }
+        }
+
+        if (conn.partialText) {
+            if (conn.partialSpeaker > 0 && conn.partialSpeaker !== lastSpeaker) {
+                const color = this.getSpeakerColor(conn.partialSpeaker);
+                html += `<span class="speaker-label" style="color: ${color};">[${this.getSpeakerLabel(conn.partialSpeaker)}]</span> `;
+            }
+            html += `<span class="partial">${conn.partialText}</span>`;
+        }
+
+        return html;
+    }
+
+    /**
+     * Open modal with full transcription text
+     */
+    openFullText(modelId) {
+        const conn = this.connections.get(modelId);
+        const model = this.models.find(m => m.id === modelId);
+
+        this.modalTitle.textContent = `${model?.name || modelId} - フルテキスト`;
+
+        if (conn) {
+            this.modalTranscription.innerHTML = this.buildTranscriptionHtml(conn);
+        } else {
+            this.modalTranscription.innerHTML = '<span style="color: #6b7280;">テキストがありません</span>';
+        }
+
+        this.modalOverlay.classList.add('active');
+    }
+
+    /**
+     * Close the modal
+     */
+    closeModal() {
+        this.modalOverlay.classList.remove('active');
+    }
+
+    /**
      * Update transcription display for a specific model
      */
     updateTranscriptionForModel(modelId) {
@@ -555,10 +635,10 @@ class ASRClient {
 
         const el = document.getElementById(`transcription-${modelId}`);
         if (el) {
-            const html = this.buildTranscriptionHtml(conn);
+            // Use recent transcription for compact view
+            const html = this.buildRecentTranscriptionHtml(conn);
             console.log(`Updating ${modelId}: partialText='${conn.partialText}', segments=${conn.segments.length}, html length=${html.length}`);
             el.innerHTML = html;
-            el.scrollTop = el.scrollHeight;
         } else {
             console.warn(`Element not found: transcription-${modelId}`);
         }
@@ -646,13 +726,14 @@ class ASRClient {
             this.mediaStream = null;
         }
 
-        // Close all WebSocket connections
+        // Close all WebSocket connections but keep transcription data
         for (const [modelId, conn] of this.connections) {
             if (conn.ws) {
                 conn.ws.close();
+                conn.ws = null;
             }
+            conn.status = 'disconnected';
         }
-        this.connections.clear();
     }
 
     /**
@@ -674,6 +755,9 @@ class ASRClient {
                 el.innerHTML = '';
             }
         }
+
+        // Clear modal content as well
+        this.modalTranscription.innerHTML = '';
 
         this.renderResultsArea();
     }

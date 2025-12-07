@@ -46,14 +46,14 @@ MODELS: dict[str, ModelConfig] = {
     "google-stt": ModelConfig(
         id="google-stt",
         name="Google Speech-to-Text",
-        description="Google Cloud Speech-to-Text API (Streaming), 🚀全モデル最速・⏫️最高品質",
+        description="Google Cloud Speech-to-Text API (Streaming), 🚀全モデル最速・⏫️高品質",
         url=os.environ.get("GOOGLE_STT_URL", "http://google-stt:8000"),
         speed="fast",
     ),
     "openai-stt": ModelConfig(
         id="openai-stt",
         name="OpenAI gpt-4o-transcribe",
-        description="OpenAI Realtime API (gpt-4o-transcribe), 高精度音声認識",
+        description="OpenAI Realtime API (gpt-4o-transcribe), ⏫️高品質",
         url=os.environ.get("OPENAI_STT_URL", "http://openai-stt:8000"),
         speed="fast",
     ),
