@@ -212,6 +212,12 @@ async def websocket_asr(websocket: WebSocket):
                         "start_time": result.start_time,
                         "end_time": result.end_time,
                         "is_final": not result.is_partial,
+                        # Provider-specific info for debugging
+                        "provider_info": {
+                            "stability": result.stability,
+                            "confidence": result.confidence,
+                            "result_index": result.result_index,
+                        },
                     }
                     # Include speaker tag if diarization is enabled
                     if result.speaker_tag > 0:

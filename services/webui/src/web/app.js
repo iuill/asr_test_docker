@@ -451,8 +451,20 @@ class ASRClient {
                 conn.partialText = '';
                 conn.partialSpeaker = 0;
             } else {
-                conn.partialText = data.text;
-                conn.partialSpeaker = speakerTag;
+                // Filter interim results by result_index (Google STT only)
+                if (modelId === 'google-stt') {
+                    const resultIndex = data.provider_info?.result_index ?? 0;
+                    // Only show result_index=0 (first/current utterance)
+                    // result_index=0 always has high stability (~0.9)
+                    if (resultIndex === 0) {
+                        conn.partialText = data.text;
+                        conn.partialSpeaker = speakerTag;
+                    }
+                    // result_index > 0: unstable next utterance, don't update
+                } else {
+                    conn.partialText = data.text;
+                    conn.partialSpeaker = speakerTag;
+                }
             }
             this.updateTranscriptionForModel(modelId);
         } else if (data.type === 'error') {

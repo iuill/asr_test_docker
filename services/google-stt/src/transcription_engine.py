@@ -26,6 +26,10 @@ class TranscriptionResult:
     end_time: float
     is_partial: bool
     speaker_tag: int = 0  # Speaker tag for diarization (0 = unknown)
+    # Provider-specific info for debugging
+    stability: float = 0.0  # Stability of interim results (0.0-1.0)
+    confidence: float = 0.0  # Recognition confidence
+    result_index: int = 0  # Index in response.results array
 
 
 class GoogleSTTEngine:
@@ -154,13 +158,24 @@ class GoogleSTTEngine:
                 if not self._is_streaming:
                     break
 
-                for result in response.results:
+                for result_index, result in enumerate(response.results):
                     if not result.alternatives:
                         continue
 
                     alternative = result.alternatives[0]
                     text = alternative.transcript
                     speaker_tag = 0
+
+                    # Extract stability and confidence for debugging
+                    stability = getattr(result, 'stability', 0.0)
+                    confidence = getattr(alternative, 'confidence', 0.0)
+
+                    # Extract result_end_time
+                    result_end_time = getattr(result, 'result_end_time', None)
+                    if result_end_time:
+                        end_time = result_end_time.seconds + result_end_time.microseconds / 1_000_000
+                    else:
+                        end_time = 0.0
 
                     # Extract speaker tag if diarization is enabled
                     if self.enable_diarization and result.is_final:
@@ -172,9 +187,12 @@ class GoogleSTTEngine:
                         transcription_result = TranscriptionResult(
                             text=text,
                             start_time=0.0,
-                            end_time=0.0,
+                            end_time=end_time,
                             is_partial=not result.is_final,
                             speaker_tag=speaker_tag,
+                            stability=stability,
+                            confidence=confidence,
+                            result_index=result_index,
                         )
 
                         # Put result in the async queue
