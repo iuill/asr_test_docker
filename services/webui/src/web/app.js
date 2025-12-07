@@ -202,9 +202,46 @@ class ASRClient {
     }
 
     /**
+     * Save result card heights before re-rendering
+     */
+    saveResultCardHeights() {
+        const heights = {};
+        const cards = this.resultsContainer.querySelectorAll('.result-card');
+        cards.forEach(card => {
+            const modelId = card.dataset.model;
+            if (modelId) {
+                // Only save if height was explicitly set (user resized)
+                const style = card.style.height;
+                if (style) {
+                    heights[modelId] = style;
+                }
+            }
+        });
+        return heights;
+    }
+
+    /**
+     * Restore result card heights after re-rendering
+     */
+    restoreResultCardHeights(heights) {
+        if (!heights || Object.keys(heights).length === 0) return;
+
+        const cards = this.resultsContainer.querySelectorAll('.result-card');
+        cards.forEach(card => {
+            const modelId = card.dataset.model;
+            if (modelId && heights[modelId]) {
+                card.style.height = heights[modelId];
+            }
+        });
+    }
+
+    /**
      * Render the results area based on selected models
      */
     renderResultsArea() {
+        // Save card heights before re-rendering
+        const savedHeights = this.saveResultCardHeights();
+
         if (this.selectedModels.size === 0) {
             this.resultsContainer.innerHTML = `
                 <div class="no-model-selected">
@@ -264,6 +301,9 @@ class ASRClient {
                 マイクに向かって話すと、各モデルでリアルタイムに文字起こしされます。
             </p>
         `;
+
+        // Restore card heights after re-rendering
+        this.restoreResultCardHeights(savedHeights);
     }
 
     /**
