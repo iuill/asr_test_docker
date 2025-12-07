@@ -25,15 +25,15 @@ class ModelConfig:
 MODELS: dict[str, ModelConfig] = {
     "k2-v2": ModelConfig(
         id="k2-v2",
-        name="K2-v2",
-        description="Sherpa-ONNX Transducer (159M params, オフライン最速)",
+        name="reazonspeech-k2-v2",
+        description="Sherpa-ONNX Transducer (159M params, ローカル実行で高速)",
         url=os.environ.get("K2_V2_URL", "http://k2-v2:8000"),
         speed="fast",
         append_newline_on_final=True,
     ),
     "espnet-v2": ModelConfig(
         id="espnet-v2",
-        name="ESPnet-v2",
+        name="reazonspeech-espnet-v2",
         description="ESPnet Conformer-Transducer (119M params)",
         url=os.environ.get("ESPNET_V2_URL", "http://espnet-v2:8000"),
         speed="standard",
@@ -41,8 +41,8 @@ MODELS: dict[str, ModelConfig] = {
     ),
     "espnet-v2-onnx": ModelConfig(
         id="espnet-v2-onnx",
-        name="ESPnet-v2 ONNX",
-        description="ESPnet + ONNX Runtime (119M params, 高速)",
+        name="reazonspeech-espnet-v2 (ONNX)",
+        description="ESPnet + ONNX Runtime (119M params)",
         url=os.environ.get("ESPNET_V2_ONNX_URL", "http://espnet-v2-onnx:8000"),
         speed="fast",
         append_newline_on_final=True,
