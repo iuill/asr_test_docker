@@ -29,6 +29,10 @@ services:
       - espnet-v2-onnx-cpu
       - google-stt
       - openai-stt
+    environment:
+      - K2_V2_URL=http://k2-v2-cpu:8000
+      - ESPNET_V2_URL=http://espnet-v2-cpu:8000
+      - ESPNET_V2_ONNX_URL=http://espnet-v2-onnx-cpu:8000
     profiles:
       - cpu
     restart: unless-stopped
