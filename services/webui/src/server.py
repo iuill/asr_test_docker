@@ -73,6 +73,7 @@ async def get_models():
                 "name": model.name,
                 "description": model.description,
                 "speed": model.speed,
+                "append_newline_on_final": model.append_newline_on_final,
                 "status": "unknown",
                 "model_loaded": False,
             }

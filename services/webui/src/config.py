@@ -17,6 +17,7 @@ class ModelConfig:
     description: str
     url: str
     speed: str  # "fast" or "standard"
+    append_newline_on_final: bool = False  # 確定テキストの末尾に改行を追加するか
 
 
 # Model configurations
@@ -28,6 +29,7 @@ MODELS: dict[str, ModelConfig] = {
         description="Sherpa-ONNX Transducer (159M params, オフライン最速)",
         url=os.environ.get("K2_V2_URL", "http://k2-v2:8000"),
         speed="fast",
+        append_newline_on_final=True,
     ),
     "espnet-v2": ModelConfig(
         id="espnet-v2",
@@ -35,6 +37,7 @@ MODELS: dict[str, ModelConfig] = {
         description="ESPnet Conformer-Transducer (119M params)",
         url=os.environ.get("ESPNET_V2_URL", "http://espnet-v2:8000"),
         speed="standard",
+        append_newline_on_final=True,
     ),
     "espnet-v2-onnx": ModelConfig(
         id="espnet-v2-onnx",
@@ -42,6 +45,7 @@ MODELS: dict[str, ModelConfig] = {
         description="ESPnet + ONNX Runtime (119M params, 高速)",
         url=os.environ.get("ESPNET_V2_ONNX_URL", "http://espnet-v2-onnx:8000"),
         speed="fast",
+        append_newline_on_final=True,
     ),
     "google-stt": ModelConfig(
         id="google-stt",
@@ -49,6 +53,7 @@ MODELS: dict[str, ModelConfig] = {
         description="Google Cloud Speech-to-Text API (Streaming), 🚀全モデル最速・⏫️高品質",
         url=os.environ.get("GOOGLE_STT_URL", "http://google-stt:8000"),
         speed="fast",
+        append_newline_on_final=True,
     ),
     "openai-stt": ModelConfig(
         id="openai-stt",
@@ -56,6 +61,7 @@ MODELS: dict[str, ModelConfig] = {
         description="OpenAI Realtime API (gpt-4o-transcribe), ⏫️高品質",
         url=os.environ.get("OPENAI_STT_URL", "http://openai-stt:8000"),
         speed="fast",
+        append_newline_on_final=True,
     ),
 }
 

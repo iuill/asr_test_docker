@@ -476,9 +476,13 @@ class ASRClient {
             const speakerTag = data.speaker_tag || 0;
 
             if (data.is_final) {
+                // Check if this model should append newline on final
+                const model = this.models.find(m => m.id === modelId);
+                const appendNewline = model?.append_newline_on_final || false;
+
                 // Add to segments with speaker info
                 conn.segments.push({
-                    text: data.text,
+                    text: data.text + (appendNewline ? '\n' : ''),
                     speakerTag: speakerTag
                 });
                 conn.partialText = '';
@@ -546,11 +550,13 @@ class ASRClient {
                 lastSpeaker = segment.speakerTag;
             }
 
+            // Convert newlines to <br> for HTML display
+            const displayText = segment.text.replace(/\n/g, '<br>');
             if (segment.speakerTag > 0) {
                 const color = this.getSpeakerColor(segment.speakerTag);
-                html += `<span class="speaker-text" style="color: ${color};">${segment.text}</span>`;
+                html += `<span class="speaker-text" style="color: ${color};">${displayText}</span>`;
             } else {
-                html += segment.text;
+                html += displayText;
             }
         }
 
@@ -582,11 +588,13 @@ class ASRClient {
                 lastSpeaker = segment.speakerTag;
             }
 
+            // Convert newlines to <br> for HTML display
+            const displayText = segment.text.replace(/\n/g, '<br>');
             if (segment.speakerTag > 0) {
                 const color = this.getSpeakerColor(segment.speakerTag);
-                html += `<span class="speaker-text" style="color: ${color};">${segment.text}</span>`;
+                html += `<span class="speaker-text" style="color: ${color};">${displayText}</span>`;
             } else {
-                html += segment.text;
+                html += displayText;
             }
         }
 
