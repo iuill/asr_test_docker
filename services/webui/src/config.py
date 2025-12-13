@@ -74,7 +74,7 @@ MODELS: dict[str, ModelConfig] = {
     "openai-stt": ModelConfig(
         id="openai-stt",
         name="OpenAI gpt-4o-transcribe",
-        description="OpenAI Realtime API (gpt-4o-transcribe), ⏫️最高品質",
+        description="OpenAI Realtime API (gpt-4o-transcribe), ⏫️高品質",
         url=os.environ.get("OPENAI_STT_URL", "http://openai-stt:8000"),
         speed="fast",
         append_newline_on_final=True,
@@ -82,7 +82,7 @@ MODELS: dict[str, ModelConfig] = {
     "azure-stt": ModelConfig(
         id="azure-stt",
         name="Azure Speech-to-Text",
-        description="Azure AI Speech SDK (リアルタイム), ⏫️高品質, 🚀最高速",
+        description="Azure AI Speech SDK (リアルタイム), ⏫️最高品質, 🚀最高速",
         url=os.environ.get("AZURE_STT_URL", "http://azure-stt:8000"),
         speed="fast",
         append_newline_on_final=True,
