@@ -13,6 +13,8 @@ services:
       - espnet-v2
       - espnet-v2-onnx
       - google-stt
+      - google-stt-chirp2
+      - google-stt-chirp3
       - openai-stt
     restart: unless-stopped
 
@@ -28,6 +30,8 @@ services:
       - espnet-v2-cpu
       - espnet-v2-onnx-cpu
       - google-stt
+      - google-stt-chirp2
+      - google-stt-chirp3
       - openai-stt
     environment:
       - K2_V2_URL=http://k2-v2-cpu:8000
@@ -167,7 +171,7 @@ services:
     restart: unless-stopped
 
   # =============================================================================
-  # Google Speech-to-Text
+  # Google Speech-to-Text (default model)
   # =============================================================================
   google-stt:
     build:
@@ -183,6 +187,49 @@ services:
       - ENABLE_PUNCTUATION=true
       - ENABLE_DIARIZATION=true
       - DIARIZATION_SPEAKER_COUNT=2
+      - GOOGLE_STT_MODEL=default
+    restart: unless-stopped
+
+  # =============================================================================
+  # Google Speech-to-Text V2 API (Chirp 2 model)
+  # =============================================================================
+  google-stt-chirp2:
+    build:
+      context: ./services/google-stt-v2
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    volumes:
+      - ./credentials:/credentials:ro
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/credentials/google-stt-credentials.json
+      - LANGUAGE_CODE=ja-JP
+      - GOOGLE_STT_LOCATION=asia-southeast1
+      - ENABLE_PUNCTUATION=true
+      - ENABLE_DIARIZATION=false
+      - DIARIZATION_SPEAKER_COUNT=2
+      - GOOGLE_STT_MODEL=chirp_2
+    restart: unless-stopped
+
+  # =============================================================================
+  # Google Speech-to-Text V2 API (Chirp 3 model)
+  # =============================================================================
+  google-stt-chirp3:
+    build:
+      context: ./services/google-stt-v2
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    volumes:
+      - ./credentials:/credentials:ro
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/credentials/google-stt-credentials.json
+      - LANGUAGE_CODE=ja-JP
+      - GOOGLE_STT_LOCATION=asia-south1
+      - ENABLE_PUNCTUATION=true
+      - ENABLE_DIARIZATION=false
+      - DIARIZATION_SPEAKER_COUNT=2
+      - GOOGLE_STT_MODEL=chirp_3
     restart: unless-stopped
 
   # =============================================================================

@@ -269,32 +269,11 @@ class ASRClient {
                         transcriptionHtml = this.buildRecentTranscriptionHtml(connection);
                     }
 
-                    // Add second textbox for Google STT result_index=1
+                    // Add second textbox for Google STT V1 result_index=1 (V2 does not support this)
                     const showSecondBox = modelId === 'google-stt';
-                    const secondBoxHtml = showSecondBox ? `
-                            <div class="transcription-area transcription-area-secondary">
-                                <div class="transcription-label">次の発話（プレビュー）</div>
-                                <div class="transcription-text transcription-text-secondary" id="transcription-${modelId}-next">
-                                    ${connection?.partialText2 ? `<span class="partial">${connection.partialText2}</span>` : ''}
-                                </div>
-                            </div>
-                    ` : '';
+                    const secondBoxHtml = showSecondBox ? `<div class="transcription-area transcription-area-secondary"><div class="transcription-label">次の発話（プレビュー）</div><div class="transcription-text transcription-text-secondary" id="transcription-${modelId}-next">${connection?.partialText2 ? `<span class="partial">${connection.partialText2}</span>` : ''}</div></div>` : '';
 
-                    return `
-                        <div class="result-card" data-model="${modelId}">
-                            <div class="result-header">
-                                <span class="result-model-name">${model?.name || modelId}</span>
-                                <span class="result-status ${statusClass}">${statusText}</span>
-                            </div>
-                            <div class="transcription-area">
-                                <button class="full-text-btn" onclick="window.asrClient.openFullText('${modelId}')">全文表示</button>
-                                <div class="transcription-text" id="transcription-${modelId}">
-                                    ${transcriptionHtml}
-                                </div>
-                            </div>
-                            ${secondBoxHtml}
-                        </div>
-                    `;
+                    return `<div class="result-card" data-model="${modelId}"><div class="result-header"><span class="result-model-name">${model?.name || modelId}</span><span class="result-status ${statusClass}">${statusText}</span></div><div class="transcription-area"><button class="full-text-btn" onclick="window.asrClient.openFullText('${modelId}')">全文表示</button><div class="transcription-text" id="transcription-${modelId}">${transcriptionHtml}</div></div>${secondBoxHtml}</div>`;
                 }).join('')}
             </div>
             <p class="info">
@@ -514,6 +493,7 @@ class ASRClient {
 
         if (data.type === 'transcription') {
             const speakerTag = data.speaker_tag || 0;
+            const text = data.text || '';
 
             if (data.is_final) {
                 // Check if this model should append newline on final
@@ -522,31 +502,31 @@ class ASRClient {
 
                 // Add to segments with speaker info
                 conn.segments.push({
-                    text: data.text + (appendNewline ? '\n' : ''),
+                    text: text + (appendNewline ? '\n' : ''),
                     speakerTag: speakerTag
                 });
                 conn.partialText = '';
                 conn.partialSpeaker = 0;
-                // Clear next utterance preview when current is finalized
+                // Clear next utterance preview when current is finalized (V1 only)
                 if (modelId === 'google-stt') {
                     conn.partialText2 = '';
                     conn.partialSpeaker2 = 0;
                 }
             } else {
-                // Filter interim results by result_index (Google STT only)
+                // Filter interim results by result_index (Google STT V1 only)
                 if (modelId === 'google-stt') {
                     const resultIndex = data.provider_info?.result_index ?? 0;
                     if (resultIndex === 0) {
                         // result_index=0: current utterance (high stability ~0.9)
-                        conn.partialText = data.text;
+                        conn.partialText = text;
                         conn.partialSpeaker = speakerTag;
                     } else if (resultIndex === 1) {
                         // result_index=1: next utterance preview (unstable)
-                        conn.partialText2 = data.text;
+                        conn.partialText2 = text;
                         conn.partialSpeaker2 = speakerTag;
                     }
                 } else {
-                    conn.partialText = data.text;
+                    conn.partialText = text;
                     conn.partialSpeaker = speakerTag;
                 }
             }
@@ -691,7 +671,7 @@ class ASRClient {
             console.warn(`Element not found: transcription-${modelId}`);
         }
 
-        // Update second textbox for Google STT (result_index=1)
+        // Update second textbox for Google STT V1 (result_index=1)
         if (modelId === 'google-stt') {
             const el2 = document.getElementById(`transcription-${modelId}-next`);
             if (el2) {
