@@ -270,7 +270,7 @@ class ASRClient {
                     }
 
                     // Add second textbox for Google STT V1 result_index=1 (V2 does not support this)
-                    const showSecondBox = modelId === 'google-stt';
+                    const showSecondBox = modelId === 'google-stt-v1';
                     const secondBoxHtml = showSecondBox ? `<div class="transcription-area transcription-area-secondary"><div class="transcription-label">次の発話（プレビュー）</div><div class="transcription-text transcription-text-secondary" id="transcription-${modelId}-next">${connection?.partialText2 ? `<span class="partial">${connection.partialText2}</span>` : ''}</div></div>` : '';
 
                     return `<div class="result-card" data-model="${modelId}"><div class="result-header"><span class="result-model-name">${model?.name || modelId}</span><span class="result-status ${statusClass}">${statusText}</span></div><div class="transcription-area"><button class="full-text-btn" onclick="window.asrClient.openFullText('${modelId}')">全文表示</button><div class="transcription-text" id="transcription-${modelId}">${transcriptionHtml}</div></div>${secondBoxHtml}</div>`;
@@ -508,13 +508,13 @@ class ASRClient {
                 conn.partialText = '';
                 conn.partialSpeaker = 0;
                 // Clear next utterance preview when current is finalized (V1 only)
-                if (modelId === 'google-stt') {
+                if (modelId === 'google-stt-v1') {
                     conn.partialText2 = '';
                     conn.partialSpeaker2 = 0;
                 }
             } else {
                 // Filter interim results by result_index (Google STT V1 only)
-                if (modelId === 'google-stt') {
+                if (modelId === 'google-stt-v1') {
                     const resultIndex = data.provider_info?.result_index ?? 0;
                     if (resultIndex === 0) {
                         // result_index=0: current utterance (high stability ~0.9)
@@ -672,7 +672,7 @@ class ASRClient {
         }
 
         // Update second textbox for Google STT V1 (result_index=1)
-        if (modelId === 'google-stt') {
+        if (modelId === 'google-stt-v1') {
             const el2 = document.getElementById(`transcription-${modelId}-next`);
             if (el2) {
                 el2.innerHTML = conn.partialText2 ? `<span class="partial">${conn.partialText2}</span>` : '';

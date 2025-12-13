@@ -12,7 +12,7 @@ services:
       - k2-v2
       - espnet-v2
       - espnet-v2-onnx
-      - google-stt
+      - google-stt-v1
       - google-stt-chirp2
       - google-stt-chirp3
       - azure-stt
@@ -30,7 +30,7 @@ services:
       - k2-v2-cpu
       - espnet-v2-cpu
       - espnet-v2-onnx-cpu
-      - google-stt
+      - google-stt-v1
       - google-stt-chirp2
       - google-stt-chirp3
       - azure-stt
@@ -173,11 +173,11 @@ services:
     restart: unless-stopped
 
   # =============================================================================
-  # Google Speech-to-Text (default model)
+  # Google Speech-to-Text V1 (default model)
   # =============================================================================
-  google-stt:
+  google-stt-v1:
     build:
-      context: ./services/google-stt
+      context: ./services/google-stt-v1
       dockerfile: Dockerfile
     expose:
       - "8000"

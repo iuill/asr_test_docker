@@ -9,7 +9,7 @@
 | [reazonspeech-k2-v2](https://huggingface.co/reazon-research/reazonspeech-k2-v2) | sherpa-onnx (Transducer) | 159M | 高速 |
 | [reazonspeech-espnet-v2](https://huggingface.co/reazon-research/reazonspeech-espnet-v2) | ESPnet (Conformer-Transducer) | 119M | 標準 |
 | reazonspeech-espnet-v2-onnx | ESPnet ONNX (Conformer-Transducer) | 119M | 高速 |
-| Google Speech-to-Text | Google Cloud API (Streaming) | - | 高速 |
+| Google Speech-to-Text V1 | Google Cloud API V1 (Streaming) | - | 高速 |
 | Google Speech-to-Text V2 (Chirp 2) | Google Cloud API V2 (Streaming) | - | 高速 |
 | Google Speech-to-Text V2 (Chirp 3) | Google Cloud API V2 (Streaming) | - | 高速 |
 | Azure Speech-to-Text | Azure AI Speech SDK (Streaming) | - | 高速 |
@@ -17,7 +17,7 @@
 
 > **Note**: `espnet-v2-onnx` は `espnet-v2` と同じモデルをONNX形式に変換して使用するため、精度は同等で推論速度が向上します。
 
-> **Note**: `Google Speech-to-Text` はGoogle Cloud の有料APIを使用します。利用にはサービスアカウントキーが必要です。
+> **Note**: `Google Speech-to-Text V1` はGoogle Cloud の有料APIを使用します。利用にはサービスアカウントキーが必要です。
 
 > **Note**: `Google Speech-to-Text V2 (Chirp 2/3)` はGoogle Cloud の新しいV2 APIを使用します。Chirp 2はasia-southeast1、Chirp 3はasia-south1リージョンで動作します。
 
@@ -33,7 +33,7 @@
 |------|------|
 | 音声入力 | Windows マイクからのリアルタイム入力 |
 | 文字起こし | 発話後 1-2秒以内の擬似リアルタイム表示 |
-| モデル | reazonspeech-k2-v2 / reazonspeech-espnet-v2 / reazonspeech-espnet-v2-onnx / Google Speech-to-Text / Google Speech-to-Text V2 (Chirp 2/3) / Azure Speech-to-Text / OpenAI gpt-4o-transcribe |
+| モデル | reazonspeech-k2-v2 / reazonspeech-espnet-v2 / reazonspeech-espnet-v2-onnx / Google Speech-to-Text V1 / Google Speech-to-Text V2 (Chirp 2/3) / Azure Speech-to-Text / OpenAI gpt-4o-transcribe |
 | UI | Web UI（ブラウザベース） |
 | 実行環境 | Win11 + WSL2 + Docker |
 
@@ -70,7 +70,7 @@
         ┌───────────────────┼───────────────────┬───────────────────┬───────────────────┬───────────────────┬───────────────────┬───────────────────┐
         ▼                   ▼                   ▼                   ▼                   ▼                   ▼                   ▼                   ▼
 ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
-│   k2-v2       │   │   espnet-v2   │   │ espnet-v2-onnx│   │  google-stt   │   │google-stt-v2  │   │google-stt-v2  │   │  azure-stt    │   │  openai-stt   │
+│   k2-v2       │   │   espnet-v2   │   │ espnet-v2-onnx│   │ google-stt-v1 │   │google-stt-v2  │   │google-stt-v2  │   │  azure-stt    │   │  openai-stt   │
 │ (内部:8000)   │   │ (内部:8000)   │   │ (内部:8000)   │   │ (内部:8000)   │   │  (chirp2)     │   │  (chirp3)     │   │ (内部:8000)   │   │ (内部:8000)   │
 │               │   │               │   │               │   │               │   │ (内部:8000)   │   │ (内部:8000)   │   │               │   │               │
 │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │
@@ -288,8 +288,8 @@ python -m src.main --device cpu  # または --device cuda
 - **フロントエンド**: HTML/JavaScript
 - **特徴**: ESPnetモデルをONNX形式に変換し、ONNX Runtimeで高速推論
 
-### google-stt
-- **音声認識**: [Google Cloud Speech-to-Text API](https://cloud.google.com/speech-to-text) (Streaming)
+### google-stt-v1
+- **音声認識**: [Google Cloud Speech-to-Text API V1](https://cloud.google.com/speech-to-text) (Streaming)
 - **サーバー**: FastAPI + WebSocket
 - **フロントエンド**: HTML/JavaScript
 - **特徴**: Google Cloud のストリーミングAPIを使用したリアルタイム音声認識（有料API）
@@ -378,13 +378,13 @@ asr_test_docker/
     │       ├── transcription_engine.py  # espnet_onnx ラッパー
     │       ├── audio_processor.py
     │       └── vad.py           # Silero VAD
-    ├── google-stt/              # Google Speech-to-Text（バックエンド）
+    ├── google-stt-v1/           # Google Speech-to-Text V1（バックエンド）
     │   ├── Dockerfile
     │   ├── requirements.txt
     │   └── src/
     │       ├── main.py          # エントリポイント
     │       ├── server.py        # FastAPI WebSocket サーバー
-    │       ├── transcription_engine.py  # Google STT ラッパー
+    │       ├── transcription_engine.py  # Google STT V1 ラッパー
     │       └── audio_processor.py
     ├── google-stt-v2/           # Google Speech-to-Text V2（Chirp 2/3対応）
     │   ├── Dockerfile

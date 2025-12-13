@@ -47,11 +47,11 @@ MODELS: dict[str, ModelConfig] = {
         speed="fast",
         append_newline_on_final=True,
     ),
-    "google-stt": ModelConfig(
-        id="google-stt",
-        name="Google STT (default)",
-        description="Google Cloud Speech-to-Text API (default model), 🚀最高速",
-        url=os.environ.get("GOOGLE_STT_URL", "http://google-stt:8000"),
+    "google-stt-v1": ModelConfig(
+        id="google-stt-v1",
+        name="Google STT V1 (default)",
+        description="Google Cloud Speech-to-Text API V1 (default model), 🚀最高速",
+        url=os.environ.get("GOOGLE_STT_V1_URL", "http://google-stt-v1:8000"),
         speed="fast",
         append_newline_on_final=True,
     ),
