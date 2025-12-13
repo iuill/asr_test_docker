@@ -3,7 +3,7 @@
 
 FROM asr-test-common-base:cpu
 
-# Install additional system dependencies
+# Install additional system dependencies (cmake, pkg-config for sentencepiece build)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libsndfile1 \
     ffmpeg \
@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     git \
     python3-dev \
+    cmake \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # Install ONNX Runtime (CPU version is included with espnet-onnx)

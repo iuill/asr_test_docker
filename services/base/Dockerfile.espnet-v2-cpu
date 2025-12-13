@@ -3,13 +3,15 @@
 
 FROM asr-test-common-base:cpu
 
-# Install additional system dependencies for ESPnet (build tools for pyworld)
+# Install additional system dependencies for ESPnet (build tools for pyworld, sentencepiece)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libsndfile1 \
     ffmpeg \
     build-essential \
     g++ \
     python3-dev \
+    cmake \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # Install ESPnet and related dependencies
