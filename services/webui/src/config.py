@@ -50,7 +50,7 @@ MODELS: dict[str, ModelConfig] = {
     "google-stt": ModelConfig(
         id="google-stt",
         name="Google STT (default)",
-        description="Google Cloud Speech-to-Text API (default model)",
+        description="Google Cloud Speech-to-Text API (default model), 🚀最高速",
         url=os.environ.get("GOOGLE_STT_URL", "http://google-stt:8000"),
         speed="fast",
         append_newline_on_final=True,
@@ -66,7 +66,7 @@ MODELS: dict[str, ModelConfig] = {
     "google-stt-chirp3": ModelConfig(
         id="google-stt-chirp3",
         name="Google STT V2 (Chirp 3)",
-        description="Google Cloud Speech-to-Text V2 API (Chirp 3, asia-south1), ⏫️高品質",
+        description="Google Cloud Speech-to-Text V2 API (Chirp 3, asia-south1), ⏫️最高品質",
         url=os.environ.get("GOOGLE_STT_CHIRP3_URL", "http://google-stt-chirp3:8000"),
         speed="fast",
         append_newline_on_final=True,
@@ -74,8 +74,16 @@ MODELS: dict[str, ModelConfig] = {
     "openai-stt": ModelConfig(
         id="openai-stt",
         name="OpenAI gpt-4o-transcribe",
-        description="OpenAI Realtime API (gpt-4o-transcribe), ⏫️高品質",
+        description="OpenAI Realtime API (gpt-4o-transcribe), ⏫️最高品質",
         url=os.environ.get("OPENAI_STT_URL", "http://openai-stt:8000"),
+        speed="fast",
+        append_newline_on_final=True,
+    ),
+    "azure-stt": ModelConfig(
+        id="azure-stt",
+        name="Azure Speech-to-Text",
+        description="Azure AI Speech SDK (リアルタイム), ⏫️高品質, 🚀最高速",
+        url=os.environ.get("AZURE_STT_URL", "http://azure-stt:8000"),
         speed="fast",
         append_newline_on_final=True,
     ),

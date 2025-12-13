@@ -12,6 +12,7 @@
 | Google Speech-to-Text | Google Cloud API (Streaming) | - | 高速 |
 | Google Speech-to-Text V2 (Chirp 2) | Google Cloud API V2 (Streaming) | - | 高速 |
 | Google Speech-to-Text V2 (Chirp 3) | Google Cloud API V2 (Streaming) | - | 高速 |
+| Azure Speech-to-Text | Azure AI Speech SDK (Streaming) | - | 高速 |
 | OpenAI gpt-4o-transcribe | OpenAI Realtime API | - | 高速 |
 
 > **Note**: `espnet-v2-onnx` は `espnet-v2` と同じモデルをONNX形式に変換して使用するため、精度は同等で推論速度が向上します。
@@ -19,6 +20,8 @@
 > **Note**: `Google Speech-to-Text` はGoogle Cloud の有料APIを使用します。利用にはサービスアカウントキーが必要です。
 
 > **Note**: `Google Speech-to-Text V2 (Chirp 2/3)` はGoogle Cloud の新しいV2 APIを使用します。Chirp 2はasia-southeast1、Chirp 3はasia-south1リージョンで動作します。
+
+> **Note**: `Azure Speech-to-Text` はAzure AI Speech の有料APIを使用します。利用にはSpeechリソースのキーとリージョンが必要です。
 
 > **Note**: `OpenAI gpt-4o-transcribe` はOpenAI の有料APIを使用します。利用にはAPIキーが必要です。
 
@@ -30,7 +33,7 @@
 |------|------|
 | 音声入力 | Windows マイクからのリアルタイム入力 |
 | 文字起こし | 発話後 1-2秒以内の擬似リアルタイム表示 |
-| モデル | reazonspeech-k2-v2 / reazonspeech-espnet-v2 / reazonspeech-espnet-v2-onnx / Google Speech-to-Text / Google Speech-to-Text V2 (Chirp 2/3) / OpenAI gpt-4o-transcribe |
+| モデル | reazonspeech-k2-v2 / reazonspeech-espnet-v2 / reazonspeech-espnet-v2-onnx / Google Speech-to-Text / Google Speech-to-Text V2 (Chirp 2/3) / Azure Speech-to-Text / OpenAI gpt-4o-transcribe |
 | UI | Web UI（ブラウザベース） |
 | 実行環境 | Win11 + WSL2 + Docker |
 
@@ -64,16 +67,16 @@
 │  └──────────────┘  └─────────────────────────────────────┘  │
 └───────────────────────────┬─────────────────────────────────┘
                             │ WebSocket/HTTP
-        ┌───────────────────┼───────────────────┬───────────────────┬───────────────────┬───────────────────┬───────────────────┐
-        ▼                   ▼                   ▼                   ▼                   ▼                   ▼                   ▼
-┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
-│   k2-v2       │   │   espnet-v2   │   │ espnet-v2-onnx│   │  google-stt   │   │google-stt-v2  │   │google-stt-v2  │   │  openai-stt   │
-│ (内部:8000)   │   │ (内部:8000)   │   │ (内部:8000)   │   │ (内部:8000)   │   │  (chirp2)     │   │  (chirp3)     │   │ (内部:8000)   │
-│               │   │               │   │               │   │               │   │ (内部:8000)   │   │ (内部:8000)   │   │               │
-│ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │
-│ - /health     │   │ - /health     │   │ - /health     │   │ - /health     │   │ - /health     │   │ - /health     │   │ - /health     │
-│ - /info       │   │ - /info       │   │ - /info       │   │ - /info       │   │ - /info       │   │ - /info       │   │ - /info       │
-└───────────────┘   └───────────────┘   └───────────────┘   └───────────────┘   └───────────────┘   └───────────────┘   └───────────────┘
+        ┌───────────────────┼───────────────────┬───────────────────┬───────────────────┬───────────────────┬───────────────────┬───────────────────┐
+        ▼                   ▼                   ▼                   ▼                   ▼                   ▼                   ▼                   ▼
+┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
+│   k2-v2       │   │   espnet-v2   │   │ espnet-v2-onnx│   │  google-stt   │   │google-stt-v2  │   │google-stt-v2  │   │  azure-stt    │   │  openai-stt   │
+│ (内部:8000)   │   │ (内部:8000)   │   │ (内部:8000)   │   │ (内部:8000)   │   │  (chirp2)     │   │  (chirp3)     │   │ (内部:8000)   │   │ (内部:8000)   │
+│               │   │               │   │               │   │               │   │ (内部:8000)   │   │ (内部:8000)   │   │               │   │               │
+│ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │   │ - /ws/asr     │
+│ - /health     │   │ - /health     │   │ - /health     │   │ - /health     │   │ - /health     │   │ - /health     │   │ - /health     │   │ - /health     │
+│ - /info       │   │ - /info       │   │ - /info       │   │ - /info       │   │ - /info       │   │ - /info       │   │ - /info       │   │ - /info       │
+└───────────────┘   └───────────────┘   └───────────────┘   └───────────────┘   └───────────────┘   └───────────────┘   └───────────────┘   └───────────────┘
 ```
 
 ### 音声処理フロー
@@ -100,6 +103,7 @@
 - Docker Desktop（WSL2バックエンド）
 - NVIDIA GPU + NVIDIA Container Toolkit（GPU使用時）
 - Google Cloud サービスアカウントキー（Google Speech-to-Text使用時）
+- Azure Speech リソースのキーとリージョン（Azure Speech-to-Text使用時）
 - OpenAI APIキー（OpenAI gpt-4o-transcribe使用時）
 
 ### インストール
@@ -128,6 +132,25 @@ cp /path/to/your-service-account-key.json credentials/google-stt-credentials.jso
 ```
 
 > **Note**: `credentials/` ディレクトリは `.gitignore` に追加することを推奨します。
+
+### Azure Speech-to-Text のセットアップ（オプション）
+
+Azure Speech-to-Text を使用する場合は、以下の手順でセットアップします。
+
+1. [Azure Portal](https://portal.azure.com/) でSpeechリソースを作成
+2. リソースのキーとリージョンを取得
+3. `.env` ファイルを作成しキーとリージョンを設定
+
+```bash
+# .env.sample をコピー
+cp .env.sample .env
+
+# .env を編集してキーとリージョンを設定
+# AZURE_SPEECH_KEY=your_azure_speech_key_here
+# AZURE_SPEECH_REGION=japaneast
+```
+
+> **Note**: リージョンは `japaneast`、`japanwest`、`eastus` などAzure Speechがサポートするリージョンを指定できます。
 
 ### OpenAI gpt-4o-transcribe のセットアップ（オプション）
 
@@ -277,6 +300,12 @@ python -m src.main --device cpu  # または --device cuda
 - **フロントエンド**: HTML/JavaScript
 - **特徴**: Google Cloud の新しいV2 APIを使用。Chirp 2（asia-southeast1）とChirp 3（asia-south1）モデルに対応
 
+### azure-stt
+- **音声認識**: [Azure AI Speech SDK](https://learn.microsoft.com/azure/ai-services/speech-service/) (Streaming)
+- **サーバー**: FastAPI + WebSocket
+- **フロントエンド**: HTML/JavaScript
+- **特徴**: Azure AI Speech のストリーミングAPIを使用したリアルタイム音声認識（有料API）
+
 ### openai-stt
 - **音声認識**: [OpenAI Realtime API](https://platform.openai.com/docs/models/gpt-4o-transcribe) (gpt-4o-transcribe)
 - **サーバー**: FastAPI + WebSocket
@@ -365,6 +394,14 @@ asr_test_docker/
     │       ├── server.py        # FastAPI WebSocket サーバー
     │       ├── transcription_engine.py  # Google STT V2 ラッパー
     │       └── audio_processor.py
+    ├── azure-stt/               # Azure Speech-to-Text（バックエンド）
+    │   ├── Dockerfile
+    │   ├── requirements.txt
+    │   └── src/
+    │       ├── main.py          # エントリポイント
+    │       ├── server.py        # FastAPI WebSocket サーバー
+    │       ├── transcription_engine.py  # Azure Speech SDK ラッパー
+    │       └── audio_processor.py
     └── openai-stt/              # OpenAI gpt-4o-transcribe（バックエンド）
         ├── Dockerfile
         ├── requirements.txt
@@ -387,5 +424,6 @@ Apache License 2.0
 - [ESPnet GitHub](https://github.com/espnet/espnet)
 - [espnet_onnx GitHub](https://github.com/espnet/espnet_onnx)
 - [Google Cloud Speech-to-Text](https://cloud.google.com/speech-to-text)
+- [Azure AI Speech](https://learn.microsoft.com/azure/ai-services/speech-service/)
 - [OpenAI Realtime API](https://platform.openai.com/docs/models/gpt-4o-transcribe)
 - [iuill/WhisperLiveKit](https://github.com/iuill/WhisperLiveKit)（ベースプロジェクト）
