@@ -500,6 +500,28 @@ asr_test_docker/
 5. **README.md**: ドキュメントを更新
    - 対応モデル表、技術スタック、プロジェクト構成
 
+### 話者識別ありサービスの追加手順
+
+話者識別（Speaker Diarization）機能を持つASRサービスを追加する場合、上記に加えて以下のファイルも更新が必要です：
+
+1. **ASRサービス側** (`services/<service-name>/src/server.py`)
+   - 文字起こし結果に `speaker_tag`（整数）または `speaker_id`（文字列）を含める
+   - 例: `{"type": "transcription", "text": "...", "speaker_tag": 1, "is_final": true}`
+
+2. **WebUI フロントエンド** (`services/webui/src/web/app.js`)
+   - `handleMessage()` で `speaker_tag` または `speaker_id` を処理
+   - 既存の Azure STT 対応コード（`speaker_id` → 整数変換）を参考に実装
+
+3. **WebUI サーバー** (`services/webui/src/server.py`)
+   - `proxy_backend_to_client_with_session()` 内で `speaker_id` → `speaker_tag` への変換
+   - 現在は Google（`speaker_tag`: 整数）と Azure（`speaker_id`: 文字列 例: "Guest_1"）に対応
+
+4. **Viewer フロントエンド** (`services/webui/src/web/viewer.js`)
+   - `handleTranscription()` で `speaker_tag` を処理
+   - `buildTranscriptionHtml()` で話者ラベルと色分け表示
+
+> **Note**: 話者識別データは `speaker_tag`（整数）として統一してブロードキャストされます。新しいサービスが異なる形式の話者IDを返す場合は、`server.py` の変換ロジックを拡張してください。
+
 ## ライセンス
 
 Apache License 2.0

@@ -694,6 +694,170 @@
         .hidden {
             display: none !important;
         }
+
+        /* Share button styles */
+        .btn-share {
+            background-color: #8b5cf6;
+            color: white;
+        }
+
+        .btn-share:hover:not(:disabled) {
+            background-color: #7c3aed;
+        }
+
+        .btn-share.sharing {
+            background-color: #22c55e;
+            animation: pulse 2s infinite;
+        }
+
+        .btn-share.sharing:hover:not(:disabled) {
+            background-color: #16a34a;
+        }
+
+        /* Share dialog styles */
+        .share-dialog {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1500;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .share-dialog.active {
+            display: flex;
+        }
+
+        .share-dialog-content {
+            background-color: var(--card-bg);
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 500px;
+            padding: 1.5rem;
+        }
+
+        .share-dialog-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+
+        .share-dialog-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .share-dialog-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6b7280;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .share-dialog-close:hover {
+            color: var(--text-color);
+        }
+
+        .share-form-group {
+            margin-bottom: 1rem;
+        }
+
+        .share-form-group label {
+            display: block;
+            font-weight: 500;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+            color: #374151;
+        }
+
+        .share-form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .share-form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .share-result {
+            background-color: #f0fdf4;
+            border: 1px solid #86efac;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .share-result-title {
+            font-weight: 600;
+            color: #166534;
+            margin-bottom: 0.75rem;
+        }
+
+        .share-result-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .share-result-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .share-result-label {
+            font-size: 0.875rem;
+            color: #374151;
+            min-width: 80px;
+        }
+
+        .share-result-value {
+            flex: 1;
+            font-family: monospace;
+            font-size: 0.875rem;
+            background-color: white;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            border: 1px solid #d1d5db;
+        }
+
+        .share-result input.share-result-value {
+            width: auto;
+            flex: 1;
+        }
+
+        .share-btn-row {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
+
+        .btn-copy {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+        }
+
+        .btn-copy:hover {
+            background-color: var(--primary-hover);
+        }
     </style>
 </head>
 <body>
@@ -749,6 +913,16 @@
                 <button id="clearBtn" class="btn-secondary">
                     クリア
                 </button>
+                <button id="shareBtn" class="btn-share">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="18" cy="5" r="3"></circle>
+                        <circle cx="6" cy="12" r="3"></circle>
+                        <circle cx="18" cy="19" r="3"></circle>
+                        <line x1="8.59" x2="15.42" y1="13.51" y2="17.49"></line>
+                        <line x1="15.41" x2="8.59" y1="6.51" y2="10.49"></line>
+                    </svg>
+                    <span>共有</span>
+                </button>
             </div>
         </div>
 
@@ -773,6 +947,39 @@
             </div>
             <div class="modal-body">
                 <div class="modal-transcription" id="modalTranscription"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Dialog -->
+    <div class="share-dialog" id="shareDialog">
+        <div class="share-dialog-content">
+            <div class="share-dialog-header">
+                <span class="share-dialog-title">文字起こしを共有</span>
+                <button class="share-dialog-close" id="shareDialogClose">&times;</button>
+            </div>
+
+            <div class="share-form-group">
+                <label for="sharePassword">閲覧用パスワード</label>
+                <input type="text" id="sharePassword" placeholder="パスワードを入力">
+            </div>
+
+            <div class="share-result hidden" id="shareResult">
+                <div class="share-result-title">共有セッションが作成されました</div>
+                <div class="share-result-row">
+                    <span class="share-result-label">URL:</span>
+                    <input type="text" class="share-result-value" id="shareUrl" readonly>
+                    <button class="btn-copy" id="copyShareUrlBtn">URLをコピー</button>
+                </div>
+                <div class="share-result-row">
+                    <span class="share-result-label">パスワード:</span>
+                    <span class="share-result-value" id="sharePasswordDisplay"></span>
+                </div>
+            </div>
+
+            <div class="share-btn-row">
+                <button id="createShareBtn" class="btn-primary">共有を開始</button>
+                <button id="endShareBtn" class="btn-danger hidden">共有を終了</button>
             </div>
         </div>
     </div>

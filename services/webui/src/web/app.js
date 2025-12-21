@@ -8,7 +8,85 @@
  * - Multiple WebSocket connections (one per selected model)
  * - Audio visualization
  * - Separate transcription display per model
+ * - Session sharing for viewers
  */
+
+
+/**
+ * Session Manager for sharing transcription sessions
+ */
+class SessionManager {
+    constructor(authManager) {
+        this.authManager = authManager;
+        this.currentSession = null;
+    }
+
+    /**
+     * Create a new sharing session
+     */
+    async createSession(viewerPassword, selectedModels) {
+        const response = await this.authManager.fetchWithAuth('/api/sessions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                viewer_password: viewerPassword,
+                selected_models: selectedModels,
+            }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to create session');
+        }
+
+        this.currentSession = await response.json();
+        return this.currentSession;
+    }
+
+    /**
+     * End the current session
+     */
+    async endSession() {
+        if (!this.currentSession) return;
+
+        const response = await this.authManager.fetchWithAuth(
+            `/api/sessions/${this.currentSession.session_id}`,
+            { method: 'DELETE' }
+        );
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to end session');
+        }
+
+        this.currentSession = null;
+        return true;
+    }
+
+    /**
+     * Get current session ID
+     */
+    getSessionId() {
+        return this.currentSession?.session_id || null;
+    }
+
+    /**
+     * Check if session is active
+     */
+    isActive() {
+        return this.currentSession !== null;
+    }
+
+    /**
+     * Get share URL
+     */
+    getShareUrl() {
+        if (!this.currentSession) return null;
+        return `${window.location.origin}${this.currentSession.share_url}`;
+    }
+}
 
 /**
  * Authentication Manager
@@ -211,9 +289,11 @@ class AuthManager {
 
 
 class ASRClient {
-    constructor(authManager) {
+    constructor(authManager, sessionManager) {
         // Auth manager reference
         this.authManager = authManager;
+        // Session manager reference
+        this.sessionManager = sessionManager;
 
         // DOM elements
         this.startBtn = document.getElementById('startBtn');
@@ -615,6 +695,11 @@ class ASRClient {
             if (token) {
                 wsUrl += `&token=${encodeURIComponent(token)}`;
             }
+            // Add session_id if sharing is active
+            const sessionId = this.sessionManager?.getSessionId();
+            if (sessionId) {
+                wsUrl += `&session_id=${encodeURIComponent(sessionId)}`;
+            }
 
             const ws = new WebSocket(wsUrl);
 
@@ -674,6 +759,23 @@ class ASRClient {
                 }
             }, 5000);
         });
+    }
+
+    /**
+     * Reconnect all WebSockets with session_id (called when session is created during recording)
+     */
+    async reconnectWithSession() {
+        console.log('Reconnecting WebSockets with session_id...');
+
+        // Close existing connections
+        for (const [modelId, conn] of this.connections) {
+            if (conn.ws && conn.ws.readyState === WebSocket.OPEN) {
+                conn.ws.close();
+            }
+        }
+
+        // Reconnect all selected models (will include session_id now)
+        await this.connectAllModels();
     }
 
     /**
@@ -1072,11 +1174,129 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.authManager = new AuthManager();
     const isAuthenticated = await window.authManager.init();
 
-    // Initialize ASR client (pass auth manager)
-    window.asrClient = new ASRClient(window.authManager);
+    // Initialize session manager
+    window.sessionManager = new SessionManager(window.authManager);
+
+    // Initialize ASR client (pass auth manager and session manager)
+    window.asrClient = new ASRClient(window.authManager, window.sessionManager);
+
+    // Set up sharing button handlers
+    setupSharingUI();
 
     // Load models only if authenticated
     if (isAuthenticated) {
         window.asrClient.loadModels();
     }
 });
+
+
+/**
+ * Set up sharing UI handlers
+ */
+function setupSharingUI() {
+    const shareBtn = document.getElementById('shareBtn');
+    const shareDialog = document.getElementById('shareDialog');
+    const shareDialogClose = document.getElementById('shareDialogClose');
+    const createShareBtn = document.getElementById('createShareBtn');
+    const endShareBtn = document.getElementById('endShareBtn');
+    const sharePasswordInput = document.getElementById('sharePassword');
+    const shareResult = document.getElementById('shareResult');
+    const shareUrl = document.getElementById('shareUrl');
+    const sharePasswordDisplay = document.getElementById('sharePasswordDisplay');
+    const copyShareUrlBtn = document.getElementById('copyShareUrlBtn');
+
+    if (!shareBtn) return; // UI not present
+
+    // Open share dialog
+    shareBtn.addEventListener('click', () => {
+        shareDialog.classList.add('active');
+        // Reset dialog state
+        sharePasswordInput.value = '';
+        shareResult.classList.add('hidden');
+        updateShareDialogState();
+    });
+
+    // Close dialog
+    shareDialogClose.addEventListener('click', () => {
+        shareDialog.classList.remove('active');
+    });
+
+    shareDialog.addEventListener('click', (e) => {
+        if (e.target === shareDialog) {
+            shareDialog.classList.remove('active');
+        }
+    });
+
+    // Create session
+    createShareBtn.addEventListener('click', async () => {
+        const password = sharePasswordInput.value.trim();
+        if (!password) {
+            alert('パスワードを入力してください');
+            return;
+        }
+
+        const selectedModels = Array.from(window.asrClient.selectedModels);
+        if (selectedModels.length === 0) {
+            alert('モデルを選択してください');
+            return;
+        }
+
+        createShareBtn.disabled = true;
+        try {
+            const session = await window.sessionManager.createSession(password, selectedModels);
+
+            // Show result
+            shareUrl.value = window.sessionManager.getShareUrl();
+            sharePasswordDisplay.textContent = password;
+            shareResult.classList.remove('hidden');
+            updateShareDialogState();
+
+            // If recording, reconnect WebSockets with session_id
+            if (window.asrClient.isRecording) {
+                await window.asrClient.reconnectWithSession();
+            }
+        } catch (error) {
+            alert('共有セッションの作成に失敗しました: ' + error.message);
+        } finally {
+            createShareBtn.disabled = false;
+        }
+    });
+
+    // End session
+    endShareBtn.addEventListener('click', async () => {
+        if (!confirm('共有セッションを終了しますか？')) return;
+
+        endShareBtn.disabled = true;
+        try {
+            await window.sessionManager.endSession();
+            shareResult.classList.add('hidden');
+            updateShareDialogState();
+            shareDialog.classList.remove('active');
+        } catch (error) {
+            alert('共有セッションの終了に失敗しました: ' + error.message);
+        } finally {
+            endShareBtn.disabled = false;
+        }
+    });
+
+    // Copy URL
+    copyShareUrlBtn.addEventListener('click', () => {
+        shareUrl.select();
+        document.execCommand('copy');
+        copyShareUrlBtn.textContent = 'コピーしました!';
+        setTimeout(() => {
+            copyShareUrlBtn.textContent = 'URLをコピー';
+        }, 2000);
+    });
+
+    function updateShareDialogState() {
+        const isActive = window.sessionManager.isActive();
+        createShareBtn.classList.toggle('hidden', isActive);
+        sharePasswordInput.parentElement.classList.toggle('hidden', isActive);
+        endShareBtn.classList.toggle('hidden', !isActive);
+
+        // Update share button appearance
+        shareBtn.classList.toggle('sharing', isActive);
+        shareBtn.querySelector('span').textContent = isActive ? '共有中' : '共有';
+    }
+}

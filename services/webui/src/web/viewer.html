@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文字起こし閲覧 - リアルタイム音声認識</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --danger-color: #dc2626;
+            --success-color: #22c55e;
+            --warning-color: #f59e0b;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --border-color: #e5e7eb;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 98vw;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Status display */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 0.75rem;
+            height: 0.75rem;
+            border-radius: 50%;
+            background-color: #9ca3af;
+        }
+
+        .status-dot.connected {
+            background-color: var(--success-color);
+        }
+
+        .status-dot.connecting {
+            background-color: var(--warning-color);
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-dot.error {
+            background-color: var(--danger-color);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Transcription Results Grid */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1rem;
+        }
+
+        .result-card {
+            background-color: var(--card-bg);
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            resize: vertical;
+            overflow: hidden;
+            min-height: 180px;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .result-model-name {
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .transcription-area {
+            min-height: 80px;
+            max-height: 80vh;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            padding-top: 0.75rem;
+            background-color: #fafafa;
+            font-size: 1rem;
+            line-height: 1.75;
+            flex: 1 1 0;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            overflow-y: auto;
+        }
+
+        .transcription-text {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .transcription-text .partial {
+            color: #9ca3af;
+            font-style: italic;
+        }
+
+        /* Speaker diarization styles */
+        .speaker-label {
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-right: 0.25rem;
+        }
+
+        .speaker-text {
+            /* Color is set inline via JavaScript */
+        }
+
+        .no-content {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
+        }
+
+        /* Login Modal */
+        .login-overlay {
+            display: flex;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-overlay.hidden {
+            display: none;
+        }
+
+        .login-modal {
+            background-color: var(--card-bg);
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-width: 400px;
+            padding: 2rem;
+        }
+
+        .login-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            color: var(--text-color);
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-weight: 500;
+            font-size: 0.875rem;
+            color: #374151;
+        }
+
+        .form-group input {
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .login-error {
+            color: var(--danger-color);
+            font-size: 0.875rem;
+            text-align: center;
+            min-height: 1.25rem;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 0.875rem;
+            font-size: 1rem;
+            font-weight: 600;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .login-btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 2rem;
+            font-size: 0.875rem;
+            color: #9ca3af;
+        }
+
+        /* Session ended overlay */
+        .session-ended-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .session-ended-overlay.active {
+            display: flex;
+        }
+
+        .session-ended-modal {
+            background-color: var(--card-bg);
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .session-ended-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--danger-color);
+        }
+
+        .session-ended-message {
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>文字起こし閲覧</h1>
+            <p class="subtitle">リアルタイム共有セッション</p>
+        </header>
+
+        <!-- Status Bar -->
+        <div class="card">
+            <div class="status-bar">
+                <div class="status">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">接続待機中</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transcription Results -->
+        <div id="resultsContainer">
+            <div class="no-content">
+                セッションに接続中...
+            </div>
+        </div>
+
+        <footer>
+            <p>閲覧専用モード</p>
+        </footer>
+    </div>
+
+    <!-- Login Modal -->
+    <div class="login-overlay" id="loginModal">
+        <div class="login-modal">
+            <h2 class="login-title">セッションに参加</h2>
+            <form class="login-form" id="loginForm">
+                <div class="form-group">
+                    <label for="password">パスワード</label>
+                    <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="共有パスワードを入力">
+                </div>
+                <div class="login-error" id="loginError"></div>
+                <button type="submit" class="login-btn" id="loginBtn">参加する</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Session Ended Overlay -->
+    <div class="session-ended-overlay" id="sessionEndedOverlay">
+        <div class="session-ended-modal">
+            <div class="session-ended-title">セッションが終了しました</div>
+            <p class="session-ended-message">ホストがセッションを終了しました。</p>
+        </div>
+    </div>
+
+    <script src="/static/viewer.js"></script>
+</body>
+</html>
