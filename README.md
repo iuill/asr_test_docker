@@ -188,6 +188,27 @@ cp .env.sample .env
 
 > **Note**: `.env` ファイルは `.gitignore` に追加されているため、リポジトリにコミットされません。
 
+### WebUI認証のセットアップ（オプション）
+
+WebUIにID/パスワード認証を追加できます。パブリッククラウド環境にデプロイする際に推奨します。
+
+```bash
+# .env を編集して認証を有効化
+AUTH_ENABLED=true
+AUTH_USERNAME=admin
+AUTH_PASSWORD=your_secure_password_here
+JWT_SECRET_KEY=your_random_secret_key_here
+```
+
+| 環境変数 | 説明 | デフォルト値 |
+|---------|------|-------------|
+| `AUTH_ENABLED` | `true`で認証有効、`false`で無効 | `false` |
+| `AUTH_USERNAME` | ログインユーザー名 | `admin` |
+| `AUTH_PASSWORD` | ログインパスワード | `password` |
+| `JWT_SECRET_KEY` | JWTトークン署名キー（本番では十分な長さに） | `dev-secret-key...` |
+
+> **Note**: ローカル開発時は`AUTH_ENABLED=false`（デフォルト）で認証なしで使用できます。
+
 ### ビルド
 
 本プロジェクトは3層のベースイメージ構造を採用しており、2回目以降のビルドが高速化されます。

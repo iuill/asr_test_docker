@@ -7,18 +7,109 @@ unified Web UI, proxying requests to backend ASR models.
 
 import asyncio
 import logging
+import os
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import httpx
 import websockets
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
+from jose import JWTError, jwt
+from passlib.hash import bcrypt
+from pydantic import BaseModel
 from websockets.exceptions import ConnectionClosed
 
 from .config import MODELS, DEFAULT_MODEL, get_model, get_all_models
 
 logger = logging.getLogger(__name__)
+
+# Authentication settings
+AUTH_ENABLED = os.getenv("AUTH_ENABLED", "false").lower() == "true"
+AUTH_USERNAME = os.getenv("AUTH_USERNAME", "admin")
+AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "password")
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-key-change-in-production")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRE_HOURS = 24
+
+# Hash the password at startup for comparison
+_hashed_password = bcrypt.hash(AUTH_PASSWORD)
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    username: str | None = None
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
+
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(hours=JWT_EXPIRE_HOURS))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return bcrypt.verify(plain_password, hashed_password)
+
+
+def authenticate_user(username: str, password: str) -> bool:
+    if username != AUTH_USERNAME:
+        return False
+    return verify_password(password, _hashed_password)
+
+
+async def get_current_user(token: str | None = Depends(oauth2_scheme)) -> str | None:
+    if not AUTH_ENABLED:
+        return "anonymous"
+
+    if token is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return username
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+def verify_ws_token(token: str | None) -> bool:
+    """Verify WebSocket token. Returns True if valid or auth disabled."""
+    if not AUTH_ENABLED:
+        return True
+
+    if not token:
+        return False
+
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        username = payload.get("sub")
+        return username is not None
+    except JWTError:
+        return False
 
 app = FastAPI(
     title="ASR Test Web UI",
@@ -57,8 +148,37 @@ async def health_check():
     return {"status": "healthy", "service": "webui"}
 
 
+@app.get("/api/auth/status")
+async def auth_status():
+    """Check if authentication is enabled."""
+    return {"auth_enabled": AUTH_ENABLED}
+
+
+@app.post("/api/auth/login", response_model=Token)
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Authenticate user and return JWT token."""
+    if not AUTH_ENABLED:
+        return Token(access_token=create_access_token({"sub": "anonymous"}), token_type="bearer")
+
+    if not authenticate_user(form_data.username, form_data.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token = create_access_token({"sub": form_data.username})
+    return Token(access_token=access_token, token_type="bearer")
+
+
+@app.get("/api/auth/me")
+async def get_me(current_user: str = Depends(get_current_user)):
+    """Get current user info."""
+    return {"username": current_user, "auth_enabled": AUTH_ENABLED}
+
+
 @app.get("/api/models")
-async def get_models():
+async def get_models(current_user: str = Depends(get_current_user)):
     """
     Get list of available ASR models with their status.
 
@@ -99,6 +219,7 @@ async def get_models():
 async def websocket_asr(
     websocket: WebSocket,
     model: str = Query(default=DEFAULT_MODEL),
+    token: str | None = Query(default=None),
 ):
     """
     WebSocket endpoint for real-time ASR.
@@ -108,7 +229,13 @@ async def websocket_asr(
     Args:
         websocket: Client WebSocket connection
         model: Model ID to use for transcription
+        token: JWT token for authentication
     """
+    # Verify authentication
+    if not verify_ws_token(token):
+        await websocket.close(code=4001, reason="Unauthorized")
+        return
+
     # Validate model
     model_config = get_model(model)
     if not model_config:

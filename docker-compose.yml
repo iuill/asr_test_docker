@@ -19,6 +19,11 @@ services:
       - azure-stt-diarization
       - openai-stt
       - openai-stt-mini
+    environment:
+      - AUTH_ENABLED=${AUTH_ENABLED:-false}
+      - AUTH_USERNAME=${AUTH_USERNAME:-admin}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-password}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
     restart: unless-stopped
 
   # Web UI for CPU-only mode
@@ -43,6 +48,10 @@ services:
       - K2_V2_URL=http://k2-v2-cpu:8000
       - ESPNET_V2_URL=http://espnet-v2-cpu:8000
       - ESPNET_V2_ONNX_URL=http://espnet-v2-onnx-cpu:8000
+      - AUTH_ENABLED=${AUTH_ENABLED:-false}
+      - AUTH_USERNAME=${AUTH_USERNAME:-admin}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-password}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
     profiles:
       - cpu
     restart: unless-stopped

@@ -12,6 +12,9 @@ dependencies = [
     "uvicorn[standard]>=0.38.0",
     "websockets>=15.0",
     "httpx>=0.28.0",
+    "python-jose[cryptography]>=3.5.0",
+    "libpass[bcrypt]>=1.9.3",
+    "python-multipart>=0.0.21",
 ]
 
 [tool.hatch.build.targets.wheel]

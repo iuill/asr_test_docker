@@ -2,6 +2,7 @@
  * Real-time ASR Client with Multi-Model Support
  *
  * This script handles:
+ * - Authentication (login/logout with JWT)
  * - Multiple model selection (checkboxes)
  * - Microphone access and audio capture
  * - Multiple WebSocket connections (one per selected model)
@@ -9,8 +10,211 @@
  * - Separate transcription display per model
  */
 
-class ASRClient {
+/**
+ * Authentication Manager
+ * Handles login, logout, token storage, and API authentication
+ */
+class AuthManager {
     constructor() {
+        this.token = localStorage.getItem('auth_token');
+        this.authEnabled = false;
+        this.username = null;
+
+        // DOM elements
+        this.loginModal = document.getElementById('loginModal');
+        this.loginForm = document.getElementById('loginForm');
+        this.loginError = document.getElementById('loginError');
+        this.loginBtn = document.getElementById('loginBtn');
+        this.headerActions = document.getElementById('headerActions');
+        this.userInfo = document.getElementById('userInfo');
+        this.logoutBtn = document.getElementById('logoutBtn');
+
+        // Bind event handlers
+        this.loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+        this.logoutBtn.addEventListener('click', () => this.logout());
+    }
+
+    /**
+     * Initialize authentication - check if auth is enabled and validate token
+     */
+    async init() {
+        try {
+            // Check if auth is enabled
+            const statusResponse = await fetch('/api/auth/status');
+            const statusData = await statusResponse.json();
+            this.authEnabled = statusData.auth_enabled;
+
+            if (!this.authEnabled) {
+                // Auth disabled - no login required
+                this.hideLoginModal();
+                return true;
+            }
+
+            // Auth enabled - validate existing token
+            if (this.token) {
+                const isValid = await this.validateToken();
+                if (isValid) {
+                    this.showUserInfo();
+                    return true;
+                }
+            }
+
+            // No valid token - show login
+            this.showLoginModal();
+            return false;
+        } catch (error) {
+            console.error('Auth init error:', error);
+            // On error, assume auth is disabled
+            this.hideLoginModal();
+            return true;
+        }
+    }
+
+    /**
+     * Validate current token
+     */
+    async validateToken() {
+        try {
+            const response = await this.fetchWithAuth('/api/auth/me');
+            if (response.ok) {
+                const data = await response.json();
+                this.username = data.username;
+                return true;
+            }
+            this.clearToken();
+            return false;
+        } catch (error) {
+            console.error('Token validation error:', error);
+            this.clearToken();
+            return false;
+        }
+    }
+
+    /**
+     * Handle login form submission
+     */
+    async handleLogin(e) {
+        e.preventDefault();
+
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        this.loginBtn.disabled = true;
+        this.loginError.textContent = '';
+
+        try {
+            const formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('password', password);
+
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: formData,
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                this.token = data.access_token;
+                this.username = username;
+                localStorage.setItem('auth_token', this.token);
+
+                this.hideLoginModal();
+                this.showUserInfo();
+                this.loginForm.reset();
+
+                // Trigger app initialization
+                if (window.asrClient) {
+                    window.asrClient.loadModels();
+                }
+            } else {
+                const errorData = await response.json();
+                this.loginError.textContent = errorData.detail || 'ログインに失敗しました';
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            this.loginError.textContent = 'ネットワークエラーが発生しました';
+        } finally {
+            this.loginBtn.disabled = false;
+        }
+    }
+
+    /**
+     * Logout user
+     */
+    logout() {
+        this.clearToken();
+        this.username = null;
+        this.headerActions.classList.add('hidden');
+        this.showLoginModal();
+    }
+
+    /**
+     * Clear stored token
+     */
+    clearToken() {
+        this.token = null;
+        localStorage.removeItem('auth_token');
+    }
+
+    /**
+     * Show login modal
+     */
+    showLoginModal() {
+        this.loginModal.classList.add('active');
+    }
+
+    /**
+     * Hide login modal
+     */
+    hideLoginModal() {
+        this.loginModal.classList.remove('active');
+    }
+
+    /**
+     * Show user info in header
+     */
+    showUserInfo() {
+        if (this.authEnabled && this.username) {
+            this.userInfo.textContent = `ユーザー: ${this.username}`;
+            this.headerActions.classList.remove('hidden');
+        }
+    }
+
+    /**
+     * Fetch with authentication header
+     */
+    async fetchWithAuth(url, options = {}) {
+        const headers = options.headers || {};
+        if (this.token) {
+            headers['Authorization'] = `Bearer ${this.token}`;
+        }
+        return fetch(url, { ...options, headers });
+    }
+
+    /**
+     * Get token for WebSocket connection
+     */
+    getToken() {
+        return this.token;
+    }
+
+    /**
+     * Check if authenticated (or auth disabled)
+     */
+    isAuthenticated() {
+        return !this.authEnabled || !!this.token;
+    }
+}
+
+
+class ASRClient {
+    constructor(authManager) {
+        // Auth manager reference
+        this.authManager = authManager;
+
         // DOM elements
         this.startBtn = document.getElementById('startBtn');
         this.stopBtn = document.getElementById('stopBtn');
@@ -78,9 +282,8 @@ class ASRClient {
             }
         });
 
-        // Initialize
+        // Initialize visualizer
         this.setupVisualizer();
-        this.loadModels();
 
         // Refresh model status periodically
         setInterval(() => this.refreshModelStatus(), 30000);
@@ -91,7 +294,15 @@ class ASRClient {
      */
     async loadModels() {
         try {
-            const response = await fetch('/api/models');
+            const response = await this.authManager.fetchWithAuth('/api/models');
+
+            if (response.status === 401) {
+                // Token expired or invalid - show login
+                this.authManager.clearToken();
+                this.authManager.showLoginModal();
+                return;
+            }
+
             const data = await response.json();
 
             this.models = data.models;
@@ -116,9 +327,17 @@ class ASRClient {
      */
     async refreshModelStatus() {
         if (this.isRecording) return; // Don't refresh while recording
+        if (!this.authManager.isAuthenticated()) return; // Don't refresh if not authenticated
 
         try {
-            const response = await fetch('/api/models');
+            const response = await this.authManager.fetchWithAuth('/api/models');
+
+            if (response.status === 401) {
+                this.authManager.clearToken();
+                this.authManager.showLoginModal();
+                return;
+            }
+
             const data = await response.json();
 
             this.models = data.models;
@@ -391,7 +610,11 @@ class ASRClient {
     async connectToModel(modelId) {
         return new Promise((resolve, reject) => {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws/asr?model=${modelId}`;
+            const token = this.authManager.getToken();
+            let wsUrl = `${protocol}//${window.location.host}/ws/asr?model=${modelId}`;
+            if (token) {
+                wsUrl += `&token=${encodeURIComponent(token)}`;
+            }
 
             const ws = new WebSocket(wsUrl);
 
@@ -836,6 +1059,16 @@ class ASRClient {
 }
 
 // Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    window.asrClient = new ASRClient();
+document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize auth manager first
+    window.authManager = new AuthManager();
+    const isAuthenticated = await window.authManager.init();
+
+    // Initialize ASR client (pass auth manager)
+    window.asrClient = new ASRClient(window.authManager);
+
+    // Load models only if authenticated
+    if (isAuthenticated) {
+        window.asrClient.loadModels();
+    }
 });
