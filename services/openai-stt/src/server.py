@@ -24,13 +24,31 @@ from .transcription_engine import OpenAISTTEngine, create_engine
 
 logger = logging.getLogger(__name__)
 
-# Model information
+# Model information (dynamically updated based on actual model)
 MODEL_INFO = {
     "id": "openai-stt",
     "name": "OpenAI gpt-4o-transcribe",
     "description": "OpenAI Realtime API (gpt-4o-transcribe)",
     "speed": "fast",
 }
+
+
+def _get_model_info(model: str) -> dict:
+    """Generate model info based on actual model in use."""
+    if model == "gpt-4o-mini-transcribe":
+        return {
+            "id": "openai-stt-mini",
+            "name": "OpenAI gpt-4o-mini-transcribe",
+            "description": "OpenAI Realtime API (gpt-4o-mini-transcribe)",
+            "speed": "fast",
+        }
+    else:
+        return {
+            "id": "openai-stt",
+            "name": "OpenAI gpt-4o-transcribe",
+            "description": "OpenAI Realtime API (gpt-4o-transcribe)",
+            "speed": "fast",
+        }
 
 # Global engine instance
 _engine: Optional[OpenAISTTEngine] = None
@@ -47,7 +65,7 @@ def get_engine() -> OpenAISTTEngine:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
-    global _engine
+    global _engine, MODEL_INFO
 
     # Startup
     logger.info("Starting up OpenAI STT service...")
@@ -57,13 +75,16 @@ async def lifespan(app: FastAPI):
     language = getattr(app.state, "language", "ja")
     sample_rate = getattr(app.state, "sample_rate", 24000)
 
+    # Update MODEL_INFO based on actual model
+    MODEL_INFO = _get_model_info(model)
+
     _engine = create_engine(
         model=model,
         language=language,
         sample_rate=sample_rate,
     )
 
-    logger.info("OpenAI STT server ready")
+    logger.info(f"OpenAI STT server ready (model: {model})")
 
     yield
 

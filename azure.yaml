@@ -57,7 +57,7 @@ services:
     language: python
 
   openai-stt-mini:
-    project: ./services/openai-stt-mini
+    project: ./services/openai-stt
     host: containerapp
     language: python
 

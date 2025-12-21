@@ -296,10 +296,11 @@ services:
 
   # =============================================================================
   # OpenAI Speech-to-Text (gpt-4o-mini-transcribe)
+  # Uses the same codebase as openai-stt, with different model
   # =============================================================================
   openai-stt-mini:
     build:
-      context: ./services/openai-stt-mini
+      context: ./services/openai-stt
       dockerfile: Dockerfile
     expose:
       - "8000"

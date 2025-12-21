@@ -370,13 +370,10 @@ python -m src.main --device cpu  # または --device cuda
 - **音声認識**: [Azure AI Speech SDK](https://learn.microsoft.com/azure/ai-services/speech-service/) (ConversationTranscriber)
 - **特徴**: Azure AI Speech のConversationTranscriberを使用し、複数話者を自動識別（有料API）
 
-#### openai-stt
-- **音声認識**: [OpenAI Realtime API](https://platform.openai.com/docs/models/gpt-4o-transcribe) (gpt-4o-transcribe)
-- **特徴**: OpenAI のRealtime APIを使用した高精度リアルタイム音声認識（有料API）
-
-#### openai-stt-mini
-- **音声認識**: [OpenAI Realtime API](https://platform.openai.com/docs/models/gpt-4o-mini-transcribe) (gpt-4o-mini-transcribe)
-- **特徴**: OpenAI のRealtime APIを使用した軽量・高速リアルタイム音声認識（有料API）
+#### openai-stt / openai-stt-mini
+- **音声認識**: [OpenAI Realtime API](https://platform.openai.com/docs/models/gpt-4o-transcribe) (gpt-4o-transcribe / gpt-4o-mini-transcribe)
+- **特徴**: OpenAI のRealtime APIを使用したリアルタイム音声認識（有料API）
+- **構成**: 同一コードベースから`OPENAI_MODEL`環境変数でモデル切り替え（google-stt-v2と同様のパターン）
 
 ### 共通
 - **サーバー**: FastAPI + WebSocket
@@ -479,15 +476,7 @@ asr_test_docker/
     │       ├── server.py        # FastAPI WebSocket サーバー
     │       ├── transcription_engine.py  # ConversationTranscriber ラッパー
     │       └── audio_processor.py
-    ├── openai-stt/              # OpenAI gpt-4o-transcribe（バックエンド）
-    │   ├── Dockerfile
-    │   ├── requirements.txt
-    │   └── src/
-    │       ├── main.py          # エントリポイント
-    │       ├── server.py        # FastAPI WebSocket サーバー
-    │       ├── transcription_engine.py  # OpenAI Realtime API ラッパー
-    │       └── audio_processor.py
-    └── openai-stt-mini/         # OpenAI gpt-4o-mini-transcribe（バックエンド）
+    └── openai-stt/              # OpenAI gpt-4o-transcribe / gpt-4o-mini-transcribe（バックエンド）
         ├── Dockerfile
         ├── requirements.txt
         └── src/
@@ -515,7 +504,11 @@ asr_test_docker/
 3. **services/webui/src/config.py**: `MODELS` に `ModelConfig` を追加
    - WebUIのモデル選択に表示されるために必須
 
-4. **README.md**: ドキュメントを更新
+4. **azure.yaml**: サービス定義を追加（Azure Container Apps デプロイ時）
+   - `services` セクションにサービス定義を追加
+   - 対応する Bicep モジュールも `infra/` に追加が必要
+
+5. **README.md**: ドキュメントを更新
    - 対応モデル表、技術スタック、プロジェクト構成
 
 ## ライセンス
