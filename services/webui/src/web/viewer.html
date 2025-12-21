@@ -140,7 +140,7 @@
             border: 1px solid var(--border-color);
             border-radius: 0.5rem;
             padding: 0.75rem;
-            padding-top: 0.75rem;
+            padding-top: 2rem;
             background-color: #fafafa;
             font-size: 1rem;
             line-height: 1.75;
@@ -160,6 +160,19 @@
         .transcription-text .partial {
             color: #9ca3af;
             font-style: italic;
+        }
+
+
+        .transcription-label {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-bottom: 0.25rem;
+            font-weight: 500;
+        }
+
+        .transcription-text-secondary {
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
 
         /* Speaker diarization styles */
@@ -318,6 +331,136 @@
         .session-ended-message {
             color: #6b7280;
         }
+
+        .session-ended-close-btn {
+            margin-top: 1.5rem;
+            padding: 0.75rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .session-ended-close-btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* Result status */
+        .result-status {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+
+        .result-status.connected {
+            color: var(--success-color);
+        }
+
+        .result-status.error {
+            color: var(--danger-color);
+        }
+
+        /* Full text button */
+        .full-text-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+            z-index: 10;
+        }
+
+        .full-text-btn:hover {
+            opacity: 1;
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6b7280;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--text-color);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-transcription {
+            font-size: 1rem;
+            line-height: 1.75;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* Secondary transcription area (match index.html) */
+        .transcription-area-secondary {
+            min-height: 60px;
+            max-height: 120px;
+            margin-top: 0.75rem;
+            background-color: #f5f5f5;
+            border-color: #d1d5db;
+        }
     </style>
 </head>
 <body>
@@ -364,11 +507,25 @@
         </div>
     </div>
 
+    <!-- Full Text Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title" id="modalTitle">フルテキスト</span>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-transcription" id="modalTranscription"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Session Ended Overlay -->
     <div class="session-ended-overlay" id="sessionEndedOverlay">
         <div class="session-ended-modal">
             <div class="session-ended-title">セッションが終了しました</div>
             <p class="session-ended-message">ホストがセッションを終了しました。</p>
+            <button class="session-ended-close-btn" onclick="document.getElementById('sessionEndedOverlay').classList.remove('active')">閉じる</button>
         </div>
     </div>
 

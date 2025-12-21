@@ -1198,6 +1198,7 @@ function setupSharingUI() {
     const shareDialog = document.getElementById('shareDialog');
     const shareDialogClose = document.getElementById('shareDialogClose');
     const createShareBtn = document.getElementById('createShareBtn');
+    const closeShareDialogBtn = document.getElementById('closeShareDialogBtn');
     const endShareBtn = document.getElementById('endShareBtn');
     const sharePasswordInput = document.getElementById('sharePassword');
     const shareResult = document.getElementById('shareResult');
@@ -1249,7 +1250,7 @@ function setupSharingUI() {
             shareUrl.value = window.sessionManager.getShareUrl();
             sharePasswordDisplay.textContent = password;
             shareResult.classList.remove('hidden');
-            updateShareDialogState();
+            updateShareDialogState(true);
 
             // If recording, reconnect WebSockets with session_id
             if (window.asrClient.isRecording) {
@@ -1289,11 +1290,32 @@ function setupSharingUI() {
         }, 2000);
     });
 
-    function updateShareDialogState() {
+    // Close dialog (after session created)
+    closeShareDialogBtn.addEventListener('click', () => {
+        shareDialog.classList.remove('active');
+    });
+
+    function updateShareDialogState(sessionJustCreated = false) {
         const isActive = window.sessionManager.isActive();
         createShareBtn.classList.toggle('hidden', isActive);
         sharePasswordInput.parentElement.classList.toggle('hidden', isActive);
-        endShareBtn.classList.toggle('hidden', !isActive);
+
+        if (isActive) {
+            // Session is active: show either "閉じる" or "共有を終了"
+            if (sessionJustCreated) {
+                // Just created: show "閉じる" button
+                closeShareDialogBtn.classList.remove('hidden');
+                endShareBtn.classList.add('hidden');
+            } else {
+                // Reopened dialog: show "共有を終了" button
+                closeShareDialogBtn.classList.add('hidden');
+                endShareBtn.classList.remove('hidden');
+            }
+        } else {
+            // No active session: hide both
+            closeShareDialogBtn.classList.add('hidden');
+            endShareBtn.classList.add('hidden');
+        }
 
         // Update share button appearance
         shareBtn.classList.toggle('sharing', isActive);

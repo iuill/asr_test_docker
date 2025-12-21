@@ -15,8 +15,14 @@ class ViewerClient {
         this.ws = null;
 
         // Transcription data
-        this.transcriptions = new Map(); // model_id -> { segments: [], partialText: '', partialSpeaker: 0 }
+        // model_id -> { segments: [], partialText: '', partialSpeaker: 0, partialText2: '', partialSpeaker2: 0 }
+        this.transcriptions = new Map();
         this.models = [];
+        this.modelInfoMap = new Map(); // model_id -> { name, ... }
+
+        // Display settings (match app.js)
+        this.recentSegmentsCount = 5;
+        this.currentModalModelId = null;
 
         // Speaker colors for diarization
         this.speakerColors = [
@@ -40,8 +46,18 @@ class ViewerClient {
         this.loginBtn = document.getElementById('loginBtn');
         this.sessionEndedOverlay = document.getElementById('sessionEndedOverlay');
 
+        // Modal elements
+        this.modalOverlay = document.getElementById('modalOverlay');
+        this.modalTitle = document.getElementById('modalTitle');
+        this.modalTranscription = document.getElementById('modalTranscription');
+        this.modalClose = document.getElementById('modalClose');
+
         // Bind event handlers
         this.loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+        this.modalClose?.addEventListener('click', () => this.closeFullText());
+        this.modalOverlay?.addEventListener('click', (e) => {
+            if (e.target === this.modalOverlay) this.closeFullText();
+        });
     }
 
     /**
@@ -64,9 +80,10 @@ class ViewerClient {
 
         // Check if session exists
         try {
-            const response = await fetch(`/api/sessions/${this.sessionId}`);
-            if (!response.ok) {
-                if (response.status === 404) {
+            const sessionResponse = await fetch(`/api/sessions/${this.sessionId}`);
+
+            if (!sessionResponse.ok) {
+                if (sessionResponse.status === 404) {
                     this.showError('セッションが見つかりません');
                 } else {
                     this.showError('セッションの確認に失敗しました');
@@ -74,8 +91,15 @@ class ViewerClient {
                 return;
             }
 
-            const sessionInfo = await response.json();
+            const sessionInfo = await sessionResponse.json();
             this.models = sessionInfo.models;
+
+            // Build model info map for display names from session info
+            if (sessionInfo.model_info) {
+                for (const model of sessionInfo.model_info) {
+                    this.modelInfoMap.set(model.id, model);
+                }
+            }
 
             // Show login modal
             this.loginModal.classList.remove('hidden');
@@ -118,6 +142,8 @@ class ViewerClient {
                         segments: [],
                         partialText: '',
                         partialSpeaker: 0,
+                        partialText2: '',
+                        partialSpeaker2: 0,
                     });
                 }
 
@@ -197,6 +223,9 @@ class ViewerClient {
                 case 'transcription':
                     this.handleTranscription(message);
                     break;
+                case 'models_updated':
+                    this.handleModelsUpdated(message);
+                    break;
                 case 'session_end':
                     this.handleSessionEnd(message);
                     break;
@@ -220,6 +249,8 @@ class ViewerClient {
                 segments: [],
                 partialText: '',
                 partialSpeaker: 0,
+                partialText2: '',
+                partialSpeaker2: 0,
             };
 
             conn.segments = segments.map(seg => ({
@@ -247,6 +278,8 @@ class ViewerClient {
                 segments: [],
                 partialText: '',
                 partialSpeaker: 0,
+                partialText2: '',
+                partialSpeaker2: 0,
             };
             this.transcriptions.set(modelId, conn);
         }
@@ -268,12 +301,66 @@ class ViewerClient {
             });
             conn.partialText = '';
             conn.partialSpeaker = 0;
+            // Clear next utterance preview when current is finalized (V1 only)
+            if (modelId === 'google-stt-v1') {
+                conn.partialText2 = '';
+                conn.partialSpeaker2 = 0;
+            }
         } else {
-            conn.partialText = text;
-            conn.partialSpeaker = speakerTag;
+            // Filter interim results by result_index (Google STT V1 only)
+            if (modelId === 'google-stt-v1') {
+                const resultIndex = message.provider_info?.result_index ?? 0;
+                if (resultIndex === 0) {
+                    // result_index=0: current utterance (high stability ~0.9)
+                    conn.partialText = text;
+                    conn.partialSpeaker = speakerTag;
+                } else if (resultIndex === 1) {
+                    // result_index=1: next utterance preview (unstable)
+                    conn.partialText2 = text;
+                    conn.partialSpeaker2 = speakerTag;
+                }
+            } else {
+                conn.partialText = text;
+                conn.partialSpeaker = speakerTag;
+            }
         }
 
         this.updateTranscriptionForModel(modelId);
+    }
+
+    /**
+     * Handle models_updated message (host added/removed models)
+     */
+    handleModelsUpdated(message) {
+        console.log('Models updated:', message.models);
+        const newModels = message.models;
+
+        // Update model info map with names
+        if (message.model_info) {
+            for (const model of message.model_info) {
+                this.modelInfoMap.set(model.id, model);
+            }
+        }
+
+        // Add new models
+        for (const modelId of newModels) {
+            if (!this.models.includes(modelId)) {
+                this.models.push(modelId);
+                this.transcriptions.set(modelId, {
+                    segments: [],
+                    partialText: '',
+                    partialSpeaker: 0,
+                    partialText2: '',
+                    partialSpeaker2: 0,
+                });
+            }
+        }
+
+        // Note: We keep removed models' transcription history visible
+        // but they won't receive new data
+
+        this.renderResultsArea();
+        this.updateAllTranscriptions();
     }
 
     /**
@@ -328,16 +415,32 @@ class ViewerClient {
 
         this.resultsContainer.innerHTML = `
             <div class="results-grid">
-                ${this.models.map(modelId => `
-                    <div class="result-card" data-model="${modelId}">
-                        <div class="result-header">
-                            <span class="result-model-name">${modelId}</span>
+                ${this.models.map(modelId => {
+                    const model = this.modelInfoMap.get(modelId);
+                    const displayName = model?.name || modelId;
+
+                    // Add second textbox for Google STT V1 result_index=1
+                    const showSecondBox = modelId === 'google-stt-v1';
+                    const secondBoxHtml = showSecondBox
+                        ? `<div class="transcription-area transcription-area-secondary">
+                               <div class="transcription-label">次の発話（プレビュー）</div>
+                               <div class="transcription-text transcription-text-secondary" id="transcription-${modelId}-next"></div>
+                           </div>`
+                        : '';
+                    return `
+                        <div class="result-card" data-model="${modelId}">
+                            <div class="result-header">
+                                <span class="result-model-name">${displayName}</span>
+                                <span class="result-status connected">受信中</span>
+                            </div>
+                            <div class="transcription-area">
+                                <button class="full-text-btn" onclick="window.viewerClient.openFullText('${modelId}')">全文表示</button>
+                                <div class="transcription-text" id="transcription-${modelId}"></div>
+                            </div>
+                            ${secondBoxHtml}
                         </div>
-                        <div class="transcription-area">
-                            <div class="transcription-text" id="transcription-${modelId}"></div>
-                        </div>
-                    </div>
-                `).join('')}
+                    `;
+                }).join('')}
             </div>
         `;
     }
@@ -361,17 +464,69 @@ class ViewerClient {
         const el = document.getElementById(`transcription-${modelId}`);
         if (!el) return;
 
-        el.innerHTML = this.buildTranscriptionHtml(conn);
+        // Use recent transcription for compact view (match app.js)
+        el.innerHTML = this.buildRecentTranscriptionHtml(conn);
 
         // Auto-scroll to bottom
         const container = el.closest('.transcription-area');
         if (container) {
             container.scrollTop = container.scrollHeight;
         }
+
+        // Update second textbox for Google STT V1
+        if (modelId === 'google-stt-v1') {
+            const el2 = document.getElementById(`transcription-${modelId}-next`);
+            if (el2) {
+                el2.innerHTML = conn.partialText2 ? `<span class="partial">${conn.partialText2}</span>` : '';
+            }
+        }
+
+        // Update modal if open for this model
+        if (this.currentModalModelId === modelId) {
+            this.modalTranscription.innerHTML = this.buildTranscriptionHtml(conn);
+            this.modalTranscription.scrollTop = this.modalTranscription.scrollHeight;
+        }
     }
 
     /**
-     * Build HTML for transcription with speaker colors
+     * Build HTML for recent transcription only (compact view, match app.js)
+     */
+    buildRecentTranscriptionHtml(conn) {
+        let html = '';
+        let lastSpeaker = 0;
+
+        // Get only the last N segments
+        const recentSegments = conn.segments.slice(-this.recentSegmentsCount);
+
+        for (const segment of recentSegments) {
+            if (segment.speakerTag > 0 && segment.speakerTag !== lastSpeaker) {
+                const color = this.getSpeakerColor(segment.speakerTag);
+                html += `<span class="speaker-label" style="color: ${color};">[話者${segment.speakerTag}]</span> `;
+                lastSpeaker = segment.speakerTag;
+            }
+
+            const displayText = segment.text.replace(/\n/g, '<br>');
+            if (segment.speakerTag > 0) {
+                const color = this.getSpeakerColor(segment.speakerTag);
+                html += `<span class="speaker-text" style="color: ${color};">${displayText}</span>`;
+            } else {
+                html += displayText;
+            }
+        }
+
+        if (conn.partialText) {
+            if (conn.partialSpeaker > 0 && conn.partialSpeaker !== lastSpeaker) {
+                const color = this.getSpeakerColor(conn.partialSpeaker);
+                html += `<span class="speaker-label" style="color: ${color};">[話者${conn.partialSpeaker}]</span> `;
+            }
+            html += `<span class="partial">${conn.partialText}</span>`;
+        }
+
+        return html || '<span style="color: #6b7280;">テキストを待機中...</span>';
+    }
+
+    /**
+     * Build HTML for transcription with speaker colors (full text)
      */
     buildTranscriptionHtml(conn) {
         let html = '';
@@ -402,6 +557,34 @@ class ViewerClient {
         }
 
         return html || '<span style="color: #6b7280;">テキストを待機中...</span>';
+    }
+
+    /**
+     * Open modal with full transcription text
+     */
+    openFullText(modelId) {
+        const conn = this.transcriptions.get(modelId);
+        const model = this.modelInfoMap.get(modelId);
+
+        this.modalTitle.textContent = `${model?.name || modelId} - フルテキスト`;
+        this.currentModalModelId = modelId;
+
+        if (conn) {
+            this.modalTranscription.innerHTML = this.buildTranscriptionHtml(conn);
+        } else {
+            this.modalTranscription.innerHTML = '<span style="color: #6b7280;">テキストがありません</span>';
+        }
+
+        this.modalOverlay.classList.add('active');
+        this.modalTranscription.scrollTop = this.modalTranscription.scrollHeight;
+    }
+
+    /**
+     * Close full text modal
+     */
+    closeFullText() {
+        this.modalOverlay.classList.remove('active');
+        this.currentModalModelId = null;
     }
 
     /**

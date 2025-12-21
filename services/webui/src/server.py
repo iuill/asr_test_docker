@@ -411,9 +411,19 @@ async def get_session_info(session_id: str):
             detail="Session not found"
         )
 
+    # Build model info with names for viewer display
+    model_info = []
+    for model_id in session.selected_models:
+        model_config = get_model(model_id)
+        model_info.append({
+            "id": model_id,
+            "name": model_config.name if model_config else model_id,
+        })
+
     return {
         "session_id": session.id,
         "models": session.selected_models,
+        "model_info": model_info,
         "created_at": session.created_at.isoformat(),
     }
 
@@ -550,9 +560,23 @@ async def websocket_asr(
         if not session:
             await websocket.close(code=4002, reason="Session not found")
             return
+        # Dynamically add new model to session if not already present
         if model not in session.selected_models:
-            await websocket.close(code=4003, reason="Model not in session")
-            return
+            session.selected_models.append(model)
+            session.transcriptions[model] = []
+            # Notify viewers about the new model (include model names)
+            model_info = []
+            for mid in session.selected_models:
+                mc = get_model(mid)
+                model_info.append({
+                    "id": mid,
+                    "name": mc.name if mc else mid,
+                })
+            await session_manager.broadcast_to_viewers(session_id, {
+                "type": "models_updated",
+                "models": session.selected_models,
+                "model_info": model_info,
+            })
 
     await websocket.accept()
     logger.info(f"Client connected, using model: {model}, session: {session_id}")
@@ -813,6 +837,9 @@ async def proxy_backend_to_client_with_session(
                                 "speaker_tag": speaker_tag,
                                 "timestamp": datetime.now().timestamp(),
                             }
+                            # Include provider_info if present (needed for Google STT V1 result_index)
+                            if "provider_info" in data:
+                                broadcast_msg["provider_info"] = data["provider_info"]
                             await session_manager.broadcast_to_viewers(
                                 session_id, broadcast_msg
                             )
