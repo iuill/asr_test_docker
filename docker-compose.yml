@@ -16,6 +16,7 @@ services:
       - google-stt-chirp2
       - google-stt-chirp3
       - azure-stt
+      - azure-stt-diarization
       - openai-stt
     restart: unless-stopped
 
@@ -34,6 +35,7 @@ services:
       - google-stt-chirp2
       - google-stt-chirp3
       - azure-stt
+      - azure-stt-diarization
       - openai-stt
     environment:
       - K2_V2_URL=http://k2-v2-cpu:8000
@@ -240,6 +242,22 @@ services:
   azure-stt:
     build:
       context: ./services/azure-stt
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    environment:
+      - AZURE_SPEECH_KEY=${AZURE_SPEECH_KEY}
+      - AZURE_SPEECH_REGION=${AZURE_SPEECH_REGION:-japaneast}
+      - LANGUAGE_CODE=ja-JP
+      - ENABLE_PUNCTUATION=true
+    restart: unless-stopped
+
+  # =============================================================================
+  # Azure Speech-to-Text with Speaker Diarization (ConversationTranscriber)
+  # =============================================================================
+  azure-stt-diarization:
+    build:
+      context: ./services/azure-stt-diarization
       dockerfile: Dockerfile
     expose:
       - "8000"

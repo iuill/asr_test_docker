@@ -87,6 +87,14 @@ MODELS: dict[str, ModelConfig] = {
         speed="fast",
         append_newline_on_final=True,
     ),
+    "azure-stt-diarization": ModelConfig(
+        id="azure-stt-diarization",
+        name="Azure Speech-to-Text (話者識別)",
+        description="Azure AI Speech SDK (リアルタイム) + 話者識別 (ConversationTranscriber), ⏫️最高品質, 🚀最高速",
+        url=os.environ.get("AZURE_STT_DIARIZATION_URL", "http://azure-stt-diarization:8000"),
+        speed="fast",
+        append_newline_on_final=True,
+    ),
 }
 
 # Default model to use

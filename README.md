@@ -13,6 +13,7 @@
 | Google Speech-to-Text V2 (Chirp 2) | クラウド | Google Cloud API V2 (Streaming) | - | 高速 |
 | Google Speech-to-Text V2 (Chirp 3) | クラウド | Google Cloud API V2 (Streaming) | - | 高速 |
 | Azure Speech-to-Text | クラウド | Azure AI Speech SDK (Streaming) | - | 高速 |
+| Azure Speech-to-Text (話者識別) | クラウド | Azure AI Speech SDK (ConversationTranscriber) | - | 高速 |
 | OpenAI gpt-4o-transcribe | クラウド | OpenAI Realtime API | - | 高速 |
 
 > **Note**: `espnet-v2-onnx` は `espnet-v2` と同じモデルをONNX形式に変換して使用するため、精度は同等で推論速度が向上します。
@@ -22,6 +23,8 @@
 > **Note**: `Google Speech-to-Text V2 (Chirp 2/3)` はGoogle Cloud の新しいV2 APIを使用します。Chirp 2はasia-southeast1、Chirp 3はasia-south1リージョンで動作します。
 
 > **Note**: `Azure Speech-to-Text` はAzure AI Speech の有料APIを使用します。利用にはSpeechリソースのキーとリージョンが必要です。
+
+> **Note**: `Azure Speech-to-Text (話者識別)` はAzure AI SpeechのConversationTranscriberを使用し、複数話者を自動識別します。セットアップは通常のAzure Speech-to-Textと同じです。
 
 > **Note**: `OpenAI gpt-4o-transcribe` はOpenAI の有料APIを使用します。利用にはAPIキーが必要です。
 
@@ -33,7 +36,7 @@
 |------|------|
 | 音声入力 | Windows マイクからのリアルタイム入力 |
 | 文字起こし | 発話後 1-2秒以内の擬似リアルタイム表示 |
-| モデル | reazonspeech-k2-v2 / reazonspeech-espnet-v2 / reazonspeech-espnet-v2-onnx / Google Speech-to-Text V1 / Google Speech-to-Text V2 (Chirp 2/3) / Azure Speech-to-Text / OpenAI gpt-4o-transcribe |
+| モデル | reazonspeech-k2-v2 / reazonspeech-espnet-v2 / reazonspeech-espnet-v2-onnx / Google Speech-to-Text V1 / Google Speech-to-Text V2 (Chirp 2/3) / Azure Speech-to-Text / Azure Speech-to-Text (話者識別) / OpenAI gpt-4o-transcribe |
 | UI | Web UI（ブラウザベース） |
 | 実行環境 | Win11 + WSL2 + Docker |
 
@@ -304,6 +307,10 @@ python -m src.main --device cpu  # または --device cuda
 - **音声認識**: [Azure AI Speech SDK](https://learn.microsoft.com/azure/ai-services/speech-service/) (Streaming)
 - **特徴**: Azure AI Speech のストリーミングAPIを使用したリアルタイム音声認識（有料API）
 
+#### azure-stt-diarization
+- **音声認識**: [Azure AI Speech SDK](https://learn.microsoft.com/azure/ai-services/speech-service/) (ConversationTranscriber)
+- **特徴**: Azure AI Speech のConversationTranscriberを使用し、複数話者を自動識別（有料API）
+
 #### openai-stt
 - **音声認識**: [OpenAI Realtime API](https://platform.openai.com/docs/models/gpt-4o-transcribe) (gpt-4o-transcribe)
 - **特徴**: OpenAI のRealtime APIを使用した高精度リアルタイム音声認識（有料API）
@@ -399,6 +406,14 @@ asr_test_docker/
     │       ├── main.py          # エントリポイント
     │       ├── server.py        # FastAPI WebSocket サーバー
     │       ├── transcription_engine.py  # Azure Speech SDK ラッパー
+    │       └── audio_processor.py
+    ├── azure-stt-diarization/   # Azure Speech-to-Text 話者識別版（バックエンド）
+    │   ├── Dockerfile
+    │   ├── requirements.txt
+    │   └── src/
+    │       ├── main.py          # エントリポイント
+    │       ├── server.py        # FastAPI WebSocket サーバー
+    │       ├── transcription_engine.py  # ConversationTranscriber ラッパー
     │       └── audio_processor.py
     └── openai-stt/              # OpenAI gpt-4o-transcribe（バックエンド）
         ├── Dockerfile
