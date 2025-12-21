@@ -129,12 +129,16 @@ class SettingsRequest(BaseModel):
     """Request model for settings update."""
     language: Optional[str] = None
     model: Optional[str] = None
+    noise_reduction: Optional[str] = None
+    include_logprobs: Optional[bool] = None
 
 
 class SettingsResponse(BaseModel):
     """Response model for settings."""
     language: str
     model: str
+    noise_reduction: Optional[str] = None
+    include_logprobs: bool = False
 
 
 @app.get("/settings", response_model=SettingsResponse)
@@ -144,6 +148,8 @@ async def get_settings():
     return SettingsResponse(
         language=engine.language,
         model=engine.model,
+        noise_reduction=engine.noise_reduction,
+        include_logprobs=engine.include_logprobs,
     )
 
 
@@ -158,10 +164,14 @@ async def update_settings(request: SettingsRequest):
     engine.update_settings(
         language=request.language,
         model=request.model,
+        noise_reduction=request.noise_reduction,
+        include_logprobs=request.include_logprobs,
     )
     return SettingsResponse(
         language=engine.language,
         model=engine.model,
+        noise_reduction=engine.noise_reduction,
+        include_logprobs=engine.include_logprobs,
     )
 
 
@@ -215,6 +225,8 @@ async def websocket_asr(websocket: WebSocket):
                     }
                     if result.speaker_tag > 0:
                         response["speaker_tag"] = result.speaker_tag
+                    if result.logprobs is not None:
+                        response["provider_info"]["logprobs"] = result.logprobs
                     logger.info(f"Sending to WebSocket: {response}")
                     await websocket.send_json(response)
             except asyncio.CancelledError:

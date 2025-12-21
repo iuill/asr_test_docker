@@ -31,6 +31,7 @@ class TranscriptionResult:
     is_partial: bool
     speaker_tag: int = 0
     confidence: float = 0.0
+    logprobs: Optional[list] = None
 
 
 class OpenAISTTEngine:
@@ -47,6 +48,8 @@ class OpenAISTTEngine:
         model: str = "gpt-4o-transcribe",
         language: str = "ja",
         sample_rate: int = 24000,
+        noise_reduction: Optional[str] = "near_field",
+        include_logprobs: bool = False,
     ):
         """
         Initialize the OpenAI STT engine.
@@ -56,11 +59,15 @@ class OpenAISTTEngine:
             model: Model to use (gpt-4o-transcribe or gpt-4o-mini-transcribe)
             language: Language code for recognition (default: ja)
             sample_rate: Audio sample rate in Hz (must be 24000 for Realtime API)
+            noise_reduction: Noise reduction type ("near_field", "far_field", or None)
+            include_logprobs: Whether to include logprobs for confidence scores
         """
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
         self.model = model
         self.language = language
         self.sample_rate = sample_rate
+        self.noise_reduction = noise_reduction
+        self.include_logprobs = include_logprobs
         self._loaded = False
 
         # Streaming state
@@ -113,6 +120,7 @@ class OpenAISTTEngine:
         logger.info("Connected to OpenAI Realtime API")
 
         # Configure the session for transcription-only mode
+        # Note: transcription sessions use transcription_session.update with different schema
         session_config = {
             "type": "transcription_session.update",
             "session": {
@@ -129,6 +137,18 @@ class OpenAISTTEngine:
                 },
             },
         }
+
+        # Add noise reduction if configured (for transcription sessions)
+        if self.noise_reduction:
+            session_config["session"]["input_audio_noise_reduction"] = {
+                "type": self.noise_reduction,
+            }
+
+        # Add logprobs if configured
+        if self.include_logprobs:
+            session_config["session"]["include"] = [
+                "item.input_audio_transcription.logprobs"
+            ]
 
         await self._ws.send(json.dumps(session_config))
         logger.info("Session configured for transcription")
@@ -209,6 +229,19 @@ class OpenAISTTEngine:
                     elif event_type == "conversation.item.input_audio_transcription.completed":
                         # Final transcription
                         final_text = data.get("transcript", self._current_text)
+                        logprobs = data.get("logprobs")
+
+                        # Calculate confidence from logprobs if available
+                        confidence = 0.0
+                        if logprobs:
+                            try:
+                                # Average of token logprobs converted to probability
+                                import math
+                                probs = [math.exp(lp) for lp in logprobs if lp is not None]
+                                if probs:
+                                    confidence = sum(probs) / len(probs)
+                            except Exception as e:
+                                logger.warning(f"Error calculating confidence from logprobs: {e}")
 
                         if self._result_queue and final_text.strip():
                             await self._result_queue.put(
@@ -217,6 +250,8 @@ class OpenAISTTEngine:
                                     start_time=self._audio_start_time,
                                     end_time=0.0,
                                     is_partial=False,
+                                    confidence=confidence,
+                                    logprobs=logprobs,
                                 )
                             )
 
@@ -379,6 +414,8 @@ class OpenAISTTEngine:
         self,
         language: Optional[str] = None,
         model: Optional[str] = None,
+        noise_reduction: Optional[str] = None,
+        include_logprobs: Optional[bool] = None,
     ) -> None:
         """
         Update engine settings.
@@ -386,13 +423,22 @@ class OpenAISTTEngine:
         Args:
             language: Language code for recognition
             model: Model to use
+            noise_reduction: Noise reduction type ("near_field", "far_field", or None)
+            include_logprobs: Whether to include logprobs for confidence scores
         """
         if language is not None:
             self.language = language
         if model is not None:
             self.model = model
+        if noise_reduction is not None:
+            self.noise_reduction = noise_reduction
+        if include_logprobs is not None:
+            self.include_logprobs = include_logprobs
 
-        logger.info(f"Settings updated: language={self.language}, model={self.model}")
+        logger.info(
+            f"Settings updated: language={self.language}, model={self.model}, "
+            f"noise_reduction={self.noise_reduction}, include_logprobs={self.include_logprobs}"
+        )
 
 
 def create_engine(
@@ -400,6 +446,8 @@ def create_engine(
     model: str = "gpt-4o-transcribe",
     language: str = "ja",
     sample_rate: int = 24000,
+    noise_reduction: Optional[str] = "near_field",
+    include_logprobs: bool = False,
 ) -> OpenAISTTEngine:
     """
     Create and initialize an OpenAI STT engine.
@@ -409,6 +457,8 @@ def create_engine(
         model: Model to use
         language: Language code for recognition
         sample_rate: Audio sample rate in Hz
+        noise_reduction: Noise reduction type ("near_field", "far_field", or None)
+        include_logprobs: Whether to include logprobs for confidence scores
 
     Returns:
         Initialized OpenAISTTEngine instance
@@ -418,6 +468,8 @@ def create_engine(
         model=model,
         language=language,
         sample_rate=sample_rate,
+        noise_reduction=noise_reduction,
+        include_logprobs=include_logprobs,
     )
     engine.load()
     return engine
