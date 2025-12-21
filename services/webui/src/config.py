@@ -79,6 +79,14 @@ MODELS: dict[str, ModelConfig] = {
         speed="fast",
         append_newline_on_final=True,
     ),
+    "openai-stt-mini": ModelConfig(
+        id="openai-stt-mini",
+        name="OpenAI gpt-4o-mini-transcribe",
+        description="OpenAI Realtime API (gpt-4o-mini-transcribe), 軽量・高速",
+        url=os.environ.get("OPENAI_STT_MINI_URL", "http://openai-stt-mini:8000"),
+        speed="fast",
+        append_newline_on_final=True,
+    ),
     "azure-stt": ModelConfig(
         id="azure-stt",
         name="Azure Speech-to-Text",

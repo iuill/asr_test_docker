@@ -18,6 +18,7 @@ services:
       - azure-stt
       - azure-stt-diarization
       - openai-stt
+      - openai-stt-mini
     restart: unless-stopped
 
   # Web UI for CPU-only mode
@@ -37,6 +38,7 @@ services:
       - azure-stt
       - azure-stt-diarization
       - openai-stt
+      - openai-stt-mini
     environment:
       - K2_V2_URL=http://k2-v2-cpu:8000
       - ESPNET_V2_URL=http://espnet-v2-cpu:8000
@@ -280,6 +282,21 @@ services:
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL=gpt-4o-transcribe
+      - LANGUAGE_CODE=ja
+    restart: unless-stopped
+
+  # =============================================================================
+  # OpenAI Speech-to-Text (gpt-4o-mini-transcribe)
+  # =============================================================================
+  openai-stt-mini:
+    build:
+      context: ./services/openai-stt-mini
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=gpt-4o-mini-transcribe
       - LANGUAGE_CODE=ja
     restart: unless-stopped
 

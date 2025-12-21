@@ -15,6 +15,7 @@
 | Azure Speech-to-Text | クラウド | Azure AI Speech SDK (Streaming) | - | 高速 |
 | Azure Speech-to-Text (話者識別) | クラウド | Azure AI Speech SDK (ConversationTranscriber) | - | 高速 |
 | OpenAI gpt-4o-transcribe | クラウド | OpenAI Realtime API | - | 高速 |
+| OpenAI gpt-4o-mini-transcribe | クラウド | OpenAI Realtime API | - | 高速 |
 
 > **Note**: `espnet-v2-onnx` は `espnet-v2` と同じモデルをONNX形式に変換して使用するため、精度は同等で推論速度が向上します。
 
@@ -26,7 +27,7 @@
 
 > **Note**: `Azure Speech-to-Text (話者識別)` はAzure AI SpeechのConversationTranscriberを使用し、複数話者を自動識別します。セットアップは通常のAzure Speech-to-Textと同じです。
 
-> **Note**: `OpenAI gpt-4o-transcribe` はOpenAI の有料APIを使用します。利用にはAPIキーが必要です。
+> **Note**: `OpenAI gpt-4o-transcribe` / `OpenAI gpt-4o-mini-transcribe` はOpenAI の有料APIを使用します。利用にはAPIキーが必要です。`gpt-4o-mini-transcribe` は軽量・高速なモデルです。
 
 ## 仕様
 
@@ -36,7 +37,7 @@
 |------|------|
 | 音声入力 | Windows マイクからのリアルタイム入力 |
 | 文字起こし | 発話後 1-2秒以内の擬似リアルタイム表示 |
-| モデル | reazonspeech-k2-v2 / reazonspeech-espnet-v2 / reazonspeech-espnet-v2-onnx / Google Speech-to-Text V1 / Google Speech-to-Text V2 (Chirp 2/3) / Azure Speech-to-Text / Azure Speech-to-Text (話者識別) / OpenAI gpt-4o-transcribe |
+| モデル | reazonspeech-k2-v2 / reazonspeech-espnet-v2 / reazonspeech-espnet-v2-onnx / Google Speech-to-Text V1 / Google Speech-to-Text V2 (Chirp 2/3) / Azure Speech-to-Text / Azure Speech-to-Text (話者識別) / OpenAI gpt-4o-transcribe / OpenAI gpt-4o-mini-transcribe |
 | UI | Web UI（ブラウザベース） |
 | 実行環境 | Win11 + WSL2 + Docker |
 
@@ -85,13 +86,13 @@
 │ :8000)  │ │ :8000)  │ │ :8000)  │ │ :8000)  │ │(内部    │
 │         │ │         │ │         │ │         │ │ :8000)  │
 └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘
-┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
-│ google  │ │ azure   │ │ azure   │ │ openai  │
-│ stt-v2  │ │  -stt   │ │-stt-dia │ │  -stt   │
-│(chirp3) │ │(内部    │ │(内部    │ │(内部    │
-│(内部    │ │ :8000)  │ │ :8000)  │ │ :8000)  │
-│ :8000)  │ │         │ │         │ │         │
-└─────────┘ └─────────┘ └─────────┘ └─────────┘
+┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+│ google  │ │ azure   │ │ azure   │ │ openai  │ │ openai  │
+│ stt-v2  │ │  -stt   │ │-stt-dia │ │  -stt   │ │-stt-mini│
+│(chirp3) │ │(内部    │ │(内部    │ │(内部    │ │(内部    │
+│(内部    │ │ :8000)  │ │ :8000)  │ │ :8000)  │ │ :8000)  │
+│ :8000)  │ │         │ │         │ │         │ │         │
+└─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘
 
 ※ 各ASRサービスは同一のエンドポイント構成: /ws/asr, /health, /info
 ```
@@ -323,6 +324,10 @@ python -m src.main --device cpu  # または --device cuda
 - **音声認識**: [OpenAI Realtime API](https://platform.openai.com/docs/models/gpt-4o-transcribe) (gpt-4o-transcribe)
 - **特徴**: OpenAI のRealtime APIを使用した高精度リアルタイム音声認識（有料API）
 
+#### openai-stt-mini
+- **音声認識**: [OpenAI Realtime API](https://platform.openai.com/docs/models/gpt-4o-mini-transcribe) (gpt-4o-mini-transcribe)
+- **特徴**: OpenAI のRealtime APIを使用した軽量・高速リアルタイム音声認識（有料API）
+
 ### 共通
 - **サーバー**: FastAPI + WebSocket
 - **フロントエンド**: HTML/JavaScript
@@ -423,7 +428,15 @@ asr_test_docker/
     │       ├── server.py        # FastAPI WebSocket サーバー
     │       ├── transcription_engine.py  # ConversationTranscriber ラッパー
     │       └── audio_processor.py
-    └── openai-stt/              # OpenAI gpt-4o-transcribe（バックエンド）
+    ├── openai-stt/              # OpenAI gpt-4o-transcribe（バックエンド）
+    │   ├── Dockerfile
+    │   ├── requirements.txt
+    │   └── src/
+    │       ├── main.py          # エントリポイント
+    │       ├── server.py        # FastAPI WebSocket サーバー
+    │       ├── transcription_engine.py  # OpenAI Realtime API ラッパー
+    │       └── audio_processor.py
+    └── openai-stt-mini/         # OpenAI gpt-4o-mini-transcribe（バックエンド）
         ├── Dockerfile
         ├── requirements.txt
         └── src/
@@ -432,6 +445,26 @@ asr_test_docker/
             ├── transcription_engine.py  # OpenAI Realtime API ラッパー
             └── audio_processor.py
 ```
+
+## 開発者向け情報
+
+### 新規ASRサービスの追加手順
+
+新しいASRサービスを追加する際は、以下のファイルを更新してください：
+
+1. **サービスディレクトリの作成**: `services/<service-name>/`
+   - `Dockerfile`, `requirements.txt`
+   - `src/main.py`, `src/server.py`, `src/transcription_engine.py`, `src/audio_processor.py`
+   - `server.py` 内の `MODEL_INFO` でサービスIDを設定
+
+2. **docker-compose.yml**: サービス定義を追加
+   - `webui` と `webui-cpu` の `depends_on` にも追加
+
+3. **services/webui/src/config.py**: `MODELS` に `ModelConfig` を追加
+   - WebUIのモデル選択に表示されるために必須
+
+4. **README.md**: ドキュメントを更新
+   - 対応モデル表、技術スタック、プロジェクト構成
 
 ## ライセンス
 
