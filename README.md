@@ -4,16 +4,16 @@
 
 ## 対応モデル
 
-| モデル | アーキテクチャ | パラメータ数 | 速度 |
-|--------|---------------|-------------|------|
-| [reazonspeech-k2-v2](https://huggingface.co/reazon-research/reazonspeech-k2-v2) | sherpa-onnx (Transducer) | 159M | 高速 |
-| [reazonspeech-espnet-v2](https://huggingface.co/reazon-research/reazonspeech-espnet-v2) | ESPnet (Conformer-Transducer) | 119M | 標準 |
-| reazonspeech-espnet-v2-onnx | ESPnet ONNX (Conformer-Transducer) | 119M | 高速 |
-| Google Speech-to-Text V1 | Google Cloud API V1 (Streaming) | - | 高速 |
-| Google Speech-to-Text V2 (Chirp 2) | Google Cloud API V2 (Streaming) | - | 高速 |
-| Google Speech-to-Text V2 (Chirp 3) | Google Cloud API V2 (Streaming) | - | 高速 |
-| Azure Speech-to-Text | Azure AI Speech SDK (Streaming) | - | 高速 |
-| OpenAI gpt-4o-transcribe | OpenAI Realtime API | - | 高速 |
+| モデル | 種別 | アーキテクチャ | パラメータ数 | 速度 |
+|--------|------|---------------|-------------|------|
+| [reazonspeech-k2-v2](https://huggingface.co/reazon-research/reazonspeech-k2-v2) | ローカル | sherpa-onnx (Transducer) | 159M | 高速 |
+| [reazonspeech-espnet-v2](https://huggingface.co/reazon-research/reazonspeech-espnet-v2) | ローカル | ESPnet (Conformer-Transducer) | 119M | 標準 |
+| reazonspeech-espnet-v2-onnx | ローカル | ESPnet ONNX (Conformer-Transducer) | 119M | 高速 |
+| Google Speech-to-Text V1 | クラウド | Google Cloud API V1 (Streaming) | - | 高速 |
+| Google Speech-to-Text V2 (Chirp 2) | クラウド | Google Cloud API V2 (Streaming) | - | 高速 |
+| Google Speech-to-Text V2 (Chirp 3) | クラウド | Google Cloud API V2 (Streaming) | - | 高速 |
+| Azure Speech-to-Text | クラウド | Azure AI Speech SDK (Streaming) | - | 高速 |
+| OpenAI gpt-4o-transcribe | クラウド | OpenAI Realtime API | - | 高速 |
 
 > **Note**: `espnet-v2-onnx` は `espnet-v2` と同じモデルをONNX形式に変換して使用するため、精度は同等で推論速度が向上します。
 
@@ -25,7 +25,7 @@
 
 > **Note**: `OpenAI gpt-4o-transcribe` はOpenAI の有料APIを使用します。利用にはAPIキーが必要です。
 
-## 要件定義
+## 仕様
 
 ### 機能要件
 
@@ -47,8 +47,14 @@
 
 ### 技術的制約
 
-- 各モデルは**オフラインモデル**（約30秒上限）
+#### ローカルモデル（k2-v2, espnet-v2, espnet-v2-onnx）
+- **オフラインモデル**のため、約30秒上限
 - リアルタイム認識には VAD + チャンク分割による擬似ストリーミングで実現
+
+#### クラウドAPI（Google STT, Azure STT, OpenAI STT）
+- ストリーミングAPIによるリアルタイム認識
+- 時間制限なし（API仕様に準拠）
+- インターネット接続が必要
 
 ## アーキテクチャ
 
@@ -269,50 +275,42 @@ python -m src.main --device cpu  # または --device cuda
 
 ## 技術スタック
 
-### k2-v2
+### ローカルモデル
+
+#### k2-v2
 - **音声認識**: [reazonspeech-k2-v2](https://huggingface.co/reazon-research/reazonspeech-k2-v2) + [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)
 - **VAD**: Silero VAD
-- **サーバー**: FastAPI + WebSocket
-- **フロントエンド**: HTML/JavaScript
 
-### espnet-v2
+#### espnet-v2
 - **音声認識**: [reazonspeech-espnet-v2](https://huggingface.co/reazon-research/reazonspeech-espnet-v2) + [ESPnet](https://github.com/espnet/espnet)
 - **VAD**: Silero VAD
-- **サーバー**: FastAPI + WebSocket
-- **フロントエンド**: HTML/JavaScript
 
-### espnet-v2-onnx
+#### espnet-v2-onnx
 - **音声認識**: [reazonspeech-espnet-v2](https://huggingface.co/reazon-research/reazonspeech-espnet-v2) + [espnet_onnx](https://github.com/espnet/espnet_onnx)
 - **VAD**: Silero VAD
-- **サーバー**: FastAPI + WebSocket
-- **フロントエンド**: HTML/JavaScript
 - **特徴**: ESPnetモデルをONNX形式に変換し、ONNX Runtimeで高速推論
 
-### google-stt-v1
+### クラウドAPI
+
+#### google-stt-v1
 - **音声認識**: [Google Cloud Speech-to-Text API V1](https://cloud.google.com/speech-to-text) (Streaming)
-- **サーバー**: FastAPI + WebSocket
-- **フロントエンド**: HTML/JavaScript
 - **特徴**: Google Cloud のストリーミングAPIを使用したリアルタイム音声認識（有料API）
 
-### google-stt-v2 (Chirp 2 / Chirp 3)
+#### google-stt-v2 (Chirp 2 / Chirp 3)
 - **音声認識**: [Google Cloud Speech-to-Text V2 API](https://cloud.google.com/speech-to-text/v2/docs) (Streaming)
-- **サーバー**: FastAPI + WebSocket
-- **フロントエンド**: HTML/JavaScript
 - **特徴**: Google Cloud の新しいV2 APIを使用。Chirp 2（asia-southeast1）とChirp 3（asia-south1）モデルに対応
 
-### azure-stt
+#### azure-stt
 - **音声認識**: [Azure AI Speech SDK](https://learn.microsoft.com/azure/ai-services/speech-service/) (Streaming)
-- **サーバー**: FastAPI + WebSocket
-- **フロントエンド**: HTML/JavaScript
 - **特徴**: Azure AI Speech のストリーミングAPIを使用したリアルタイム音声認識（有料API）
 
-### openai-stt
+#### openai-stt
 - **音声認識**: [OpenAI Realtime API](https://platform.openai.com/docs/models/gpt-4o-transcribe) (gpt-4o-transcribe)
-- **サーバー**: FastAPI + WebSocket
-- **フロントエンド**: HTML/JavaScript
 - **特徴**: OpenAI のRealtime APIを使用した高精度リアルタイム音声認識（有料API）
 
 ### 共通
+- **サーバー**: FastAPI + WebSocket
+- **フロントエンド**: HTML/JavaScript
 - **コンテナ**: Docker
 
 ## プロジェクト構成
