@@ -259,6 +259,15 @@ docker compose up
 docker compose --profile cpu up
 ```
 
+クラウドAPIのみ起動:
+
+```bash
+# クラウドAPIのみ版（Azure/GCP/OpenAI）
+docker compose -f docker-compose.cloudonly.yml up
+```
+
+> **Note**: `docker-compose.cloudonly.yml` はクラウドAPIサービスのみを含みます（ローカルモデル除外）。GPU不要のため、Azure VM等へのデプロイに適しています。
+
 個別のモデルサービスのみ起動:
 
 ```bash
@@ -360,6 +369,7 @@ python -m src.main --device cpu  # または --device cuda
 asr_test_docker/
 ├── README.md                    # このファイル
 ├── docker-compose.yml           # Docker Compose 設定（全サービス統括）
+├── docker-compose.cloudonly.yml # クラウドAPIのみ版
 ├── LICENSE
 ├── scripts/
 │   ├── build-base-images.ps1    # ベースイメージビルド（Windows）
@@ -480,6 +490,7 @@ asr_test_docker/
 
 2. **docker-compose.yml**: サービス定義を追加
    - `webui` と `webui-cpu` の `depends_on` にも追加
+   - クラウドAPIサービスの場合は `docker-compose.cloudonly.yml` にも追加
 
 3. **services/webui/src/config.py**: `MODELS` に `ModelConfig` を追加
    - WebUIのモデル選択に表示されるために必須

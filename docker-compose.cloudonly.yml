@@ -1,0 +1,162 @@
+# Cloud-only Docker Compose configuration
+# GPU不要のクラウドAPI版サービスのみ（Azure/AWS/GCP向け）
+#
+# 使用方法:
+#   docker-compose -f docker-compose.cloudonly.yml up -d
+#
+# 含まれるサービス:
+#   - webui (フロントエンド)
+#   - google-stt-v1, google-stt-chirp2, google-stt-chirp3 (Google Cloud STT)
+#   - azure-stt, azure-stt-diarization (Azure Speech)
+#   - openai-stt, openai-stt-mini (OpenAI Realtime API)
+
+services:
+  # =============================================================================
+  # Web UI (共通フロントエンド)
+  # =============================================================================
+  webui:
+    build:
+      context: ./services/webui
+      dockerfile: Dockerfile
+    ports:
+      - "13800:8000"
+    depends_on:
+      - google-stt-v1
+      - google-stt-chirp2
+      - google-stt-chirp3
+      - azure-stt
+      - azure-stt-diarization
+      - openai-stt
+      - openai-stt-mini
+    environment:
+      - AUTH_ENABLED=${AUTH_ENABLED:-false}
+      - AUTH_USERNAME=${AUTH_USERNAME:-admin}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-password}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
+      # Cloud版ではデフォルトモデルをAzure STTに変更
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-azure-stt}
+    restart: unless-stopped
+
+  # =============================================================================
+  # Google Speech-to-Text V1 (default model)
+  # =============================================================================
+  google-stt-v1:
+    build:
+      context: ./services/google-stt-v1
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    volumes:
+      - ./credentials:/credentials:ro
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/credentials/google-stt-credentials.json
+      - LANGUAGE_CODE=ja-JP
+      - ENABLE_PUNCTUATION=true
+      - ENABLE_DIARIZATION=true
+      - DIARIZATION_SPEAKER_COUNT=2
+      - GOOGLE_STT_MODEL=default
+    restart: unless-stopped
+
+  # =============================================================================
+  # Google Speech-to-Text V2 API (Chirp 2 model)
+  # =============================================================================
+  google-stt-chirp2:
+    build:
+      context: ./services/google-stt-v2
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    volumes:
+      - ./credentials:/credentials:ro
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/credentials/google-stt-credentials.json
+      - LANGUAGE_CODE=ja-JP
+      - GOOGLE_STT_LOCATION=asia-southeast1
+      - ENABLE_PUNCTUATION=true
+      - ENABLE_DIARIZATION=false
+      - DIARIZATION_SPEAKER_COUNT=2
+      - GOOGLE_STT_MODEL=chirp_2
+    restart: unless-stopped
+
+  # =============================================================================
+  # Google Speech-to-Text V2 API (Chirp 3 model)
+  # =============================================================================
+  google-stt-chirp3:
+    build:
+      context: ./services/google-stt-v2
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    volumes:
+      - ./credentials:/credentials:ro
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/credentials/google-stt-credentials.json
+      - LANGUAGE_CODE=ja-JP
+      - GOOGLE_STT_LOCATION=asia-south1
+      - ENABLE_PUNCTUATION=true
+      - ENABLE_DIARIZATION=false
+      - DIARIZATION_SPEAKER_COUNT=2
+      - GOOGLE_STT_MODEL=chirp_3
+    restart: unless-stopped
+
+  # =============================================================================
+  # Azure Speech-to-Text (Azure AI Speech SDK)
+  # =============================================================================
+  azure-stt:
+    build:
+      context: ./services/azure-stt
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    environment:
+      - AZURE_SPEECH_KEY=${AZURE_SPEECH_KEY}
+      - AZURE_SPEECH_REGION=${AZURE_SPEECH_REGION:-japaneast}
+      - LANGUAGE_CODE=ja-JP
+      - ENABLE_PUNCTUATION=true
+    restart: unless-stopped
+
+  # =============================================================================
+  # Azure Speech-to-Text with Speaker Diarization (ConversationTranscriber)
+  # =============================================================================
+  azure-stt-diarization:
+    build:
+      context: ./services/azure-stt-diarization
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    environment:
+      - AZURE_SPEECH_KEY=${AZURE_SPEECH_KEY}
+      - AZURE_SPEECH_REGION=${AZURE_SPEECH_REGION:-japaneast}
+      - LANGUAGE_CODE=ja-JP
+      - ENABLE_PUNCTUATION=true
+    restart: unless-stopped
+
+  # =============================================================================
+  # OpenAI Speech-to-Text (gpt-4o-transcribe)
+  # =============================================================================
+  openai-stt:
+    build:
+      context: ./services/openai-stt
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=gpt-4o-transcribe
+      - LANGUAGE_CODE=ja
+    restart: unless-stopped
+
+  # =============================================================================
+  # OpenAI Speech-to-Text (gpt-4o-mini-transcribe)
+  # =============================================================================
+  openai-stt-mini:
+    build:
+      context: ./services/openai-stt-mini
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=gpt-4o-mini-transcribe
+      - LANGUAGE_CODE=ja
+    restart: unless-stopped
