@@ -1,0 +1,70 @@
+# =============================================================================
+# Azure Developer CLI (azd) プロジェクト定義
+# =============================================================================
+# 使用方法:
+#   azd auth login       # Azureにログイン
+#   azd init             # 環境初期化 (初回のみ)
+#   azd up               # プロビジョニング + デプロイ
+#   azd deploy           # アプリのみ再デプロイ
+#   azd down             # リソース削除
+# =============================================================================
+
+name: asr-service
+metadata:
+  template: asr-service@0.0.1
+
+# インフラ定義
+infra:
+  provider: bicep
+  path: infra
+
+# サービス定義 (Container Apps)
+# 実際に存在するディレクトリに合わせて定義
+services:
+  webui:
+    project: ./services/webui
+    host: containerapp
+    language: python
+
+  azure-stt:
+    project: ./services/azure-stt
+    host: containerapp
+    language: python
+
+  azure-stt-diarization:
+    project: ./services/azure-stt-diarization
+    host: containerapp
+    language: python
+
+  google-stt-v1:
+    project: ./services/google-stt-v1
+    host: containerapp
+    language: python
+
+  google-stt-chirp2:
+    project: ./services/google-stt-v2
+    host: containerapp
+    language: python
+
+  google-stt-chirp3:
+    project: ./services/google-stt-v2
+    host: containerapp
+    language: python
+
+  openai-stt:
+    project: ./services/openai-stt
+    host: containerapp
+    language: python
+
+  openai-stt-mini:
+    project: ./services/openai-stt-mini
+    host: containerapp
+    language: python
+
+# フック (オプション)
+hooks:
+  # デプロイ前にイメージをビルド
+  predeploy:
+    shell: pwsh
+    run: |
+      Write-Host "Building container images..."
