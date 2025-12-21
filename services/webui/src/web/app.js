@@ -715,7 +715,15 @@ class ASRClient {
         console.log(`Received from ${modelId}:`, data);
 
         if (data.type === 'transcription') {
-            const speakerTag = data.speaker_tag || 0;
+            // Handle both speaker_tag (integer, Google) and speaker_id (string, Azure)
+            let speakerTag = data.speaker_tag || 0;
+            if (!speakerTag && data.speaker_id) {
+                // Convert Azure speaker_id (e.g., "Guest_1") to integer
+                const match = data.speaker_id.match(/\d+/);
+                if (match) {
+                    speakerTag = parseInt(match[0]);
+                }
+            }
             const text = data.text || '';
 
             if (data.is_final) {

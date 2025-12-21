@@ -19,13 +19,33 @@ from .transcription_engine import AzureSTTEngine, create_engine
 
 logger = logging.getLogger(__name__)
 
-# Model information
+# Model information (dynamically updated based on diarization setting)
 MODEL_INFO = {
     "id": "azure-stt",
     "name": "Azure Speech-to-Text",
     "description": "Azure AI Speech SDK (Real-time)",
     "speed": "fast",
 }
+
+
+def _get_model_info(enable_diarization: bool) -> dict:
+    """Generate model info based on diarization setting."""
+    if enable_diarization:
+        return {
+            "id": "azure-stt-diarization",
+            "name": "Azure Speech-to-Text (話者識別)",
+            "description": "Azure AI Speech SDK (ConversationTranscriber)",
+            "speed": "fast",
+            "diarization_enabled": True,
+        }
+    else:
+        return {
+            "id": "azure-stt",
+            "name": "Azure Speech-to-Text",
+            "description": "Azure AI Speech SDK (Real-time)",
+            "speed": "fast",
+            "diarization_enabled": False,
+        }
 
 # Global engine instance
 _engine: Optional[AzureSTTEngine] = None
@@ -42,7 +62,7 @@ def get_engine() -> AzureSTTEngine:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
-    global _engine
+    global _engine, MODEL_INFO
 
     # Startup
     logger.info("Starting up Azure STT service...")
@@ -53,6 +73,10 @@ async def lifespan(app: FastAPI):
     language_code = getattr(app.state, "language_code", "ja-JP")
     sample_rate = getattr(app.state, "sample_rate", 16000)
     enable_punctuation = getattr(app.state, "enable_punctuation", True)
+    enable_diarization = getattr(app.state, "enable_diarization", False)
+
+    # Update MODEL_INFO based on diarization setting
+    MODEL_INFO = _get_model_info(enable_diarization)
 
     _engine = create_engine(
         speech_key=speech_key,
@@ -60,9 +84,11 @@ async def lifespan(app: FastAPI):
         language_code=language_code,
         sample_rate=sample_rate,
         enable_punctuation=enable_punctuation,
+        enable_diarization=enable_diarization,
     )
 
-    logger.info(f"Azure STT server ready (region: {speech_region})")
+    mode = "diarization" if enable_diarization else "standard"
+    logger.info(f"Azure STT server ready (region: {speech_region}, mode: {mode})")
 
     yield
 
@@ -211,9 +237,9 @@ async def websocket_asr(websocket: WebSocket):
                             "result_index": result.result_index,
                         },
                     }
-                    # Include speaker tag if available
-                    if result.speaker_tag > 0:
-                        response["speaker_tag"] = result.speaker_tag
+                    # Include speaker ID if available (for diarization mode)
+                    if result.speaker_id:
+                        response["speaker_id"] = result.speaker_id
                     await websocket.send_json(response)
             except asyncio.CancelledError:
                 pass
@@ -293,6 +319,7 @@ def create_app(
     language_code: str = "ja-JP",
     sample_rate: int = 16000,
     enable_punctuation: bool = True,
+    enable_diarization: bool = False,
 ) -> FastAPI:
     """
     Create and configure the FastAPI application.
@@ -303,6 +330,7 @@ def create_app(
         language_code: Language code for recognition
         sample_rate: Audio sample rate
         enable_punctuation: Enable automatic punctuation
+        enable_diarization: Enable speaker diarization
 
     Returns:
         Configured FastAPI application
@@ -312,5 +340,6 @@ def create_app(
     app.state.language_code = language_code
     app.state.sample_rate = sample_rate
     app.state.enable_punctuation = enable_punctuation
+    app.state.enable_diarization = enable_diarization
 
     return app

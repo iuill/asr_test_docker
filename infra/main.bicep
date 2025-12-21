@@ -111,6 +111,7 @@ var backendServices = [
     envVars: [
       { name: 'AZURE_SPEECH_KEY', secretRef: 'azure-speech-key' }
       { name: 'AZURE_SPEECH_REGION', value: azureSpeechRegion }
+      { name: 'ENABLE_DIARIZATION', value: 'true' }
     ]
   }
   {
@@ -164,6 +165,7 @@ var backendServices = [
     port: 8000
     envVars: [
       { name: 'OPENAI_API_KEY', secretRef: 'openai-api-key' }
+      { name: 'OPENAI_MODEL', value: 'gpt-4o-mini-transcribe' }
     ]
   }
 ]

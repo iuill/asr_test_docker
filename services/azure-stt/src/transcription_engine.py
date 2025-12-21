@@ -3,14 +3,14 @@ Azure Speech-to-Text Transcription Engine.
 
 Provides streaming speech recognition using Azure AI Speech SDK
 with PushAudioInputStream for real-time transcription.
+Supports optional speaker diarization via ConversationTranscriber.
 """
 
 import asyncio
 import logging
-import queue
 import threading
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Union
 
 import azure.cognitiveservices.speech as speechsdk
 
@@ -25,7 +25,7 @@ class TranscriptionResult:
     start_time: float
     end_time: float
     is_partial: bool
-    speaker_tag: int = 0  # Speaker tag for diarization (0 = unknown)
+    speaker_id: str = ""  # Speaker ID for diarization (e.g., "Guest_1", "Guest_2")
     # Provider-specific info for debugging
     stability: float = 0.0  # Stability of interim results (0.0-1.0)
     confidence: float = 0.0  # Recognition confidence
@@ -37,7 +37,8 @@ class AzureSTTEngine:
     Azure Speech-to-Text streaming transcription engine.
 
     This engine uses Azure AI Speech SDK with PushAudioInputStream
-    for real-time speech recognition.
+    for real-time speech recognition. Optionally supports speaker
+    diarization via ConversationTranscriber.
     """
 
     def __init__(
@@ -47,6 +48,7 @@ class AzureSTTEngine:
         language_code: str = "ja-JP",
         sample_rate: int = 16000,
         enable_punctuation: bool = True,
+        enable_diarization: bool = False,
     ):
         """
         Initialize the Azure STT engine.
@@ -57,12 +59,14 @@ class AzureSTTEngine:
             language_code: Language code for recognition (default: ja-JP)
             sample_rate: Audio sample rate in Hz (default: 16000)
             enable_punctuation: Enable automatic punctuation
+            enable_diarization: Enable speaker diarization (uses ConversationTranscriber)
         """
         self.speech_key = speech_key
         self.speech_region = speech_region
         self.language_code = language_code
         self.sample_rate = sample_rate
         self.enable_punctuation = enable_punctuation
+        self.enable_diarization = enable_diarization
 
         self._speech_config: Optional[speechsdk.SpeechConfig] = None
         self._loaded = False
@@ -70,7 +74,11 @@ class AzureSTTEngine:
         # Streaming state
         self._push_stream: Optional[speechsdk.audio.PushAudioInputStream] = None
         self._audio_config: Optional[speechsdk.audio.AudioConfig] = None
-        self._recognizer: Optional[speechsdk.SpeechRecognizer] = None
+        # Can be either SpeechRecognizer or ConversationTranscriber
+        self._recognizer: Optional[Union[
+            speechsdk.SpeechRecognizer,
+            speechsdk.transcription.ConversationTranscriber
+        ]] = None
         self._recognition_thread: Optional[threading.Thread] = None
         self._result_queue: Optional[asyncio.Queue] = None
         self._is_streaming = False
@@ -102,9 +110,10 @@ class AzureSTTEngine:
             self._speech_config.output_format = speechsdk.OutputFormat.Detailed
 
             self._loaded = True
+            mode = "Diarization" if self.enable_diarization else "Standard"
             logger.info(
-                f"Azure Speech SDK initialized "
-                f"(region: {self.speech_region}, language: {self.language_code})"
+                f"Azure Speech SDK initialized ({mode} mode, "
+                f"region: {self.speech_region}, language: {self.language_code})"
             )
 
         except Exception as e:
@@ -115,8 +124,8 @@ class AzureSTTEngine:
         """Check if the engine is loaded."""
         return self._loaded
 
-    def _create_recognizer(self) -> speechsdk.SpeechRecognizer:
-        """Create a new speech recognizer with push stream."""
+    def _create_audio_stream(self) -> None:
+        """Create push audio stream and audio config."""
         # Create audio format (16-bit PCM, mono)
         audio_format = speechsdk.audio.AudioStreamFormat(
             samples_per_second=self.sample_rate,
@@ -134,6 +143,10 @@ class AzureSTTEngine:
             stream=self._push_stream
         )
 
+    def _create_recognizer(self) -> speechsdk.SpeechRecognizer:
+        """Create a new speech recognizer with push stream."""
+        self._create_audio_stream()
+
         # Create recognizer
         recognizer = speechsdk.SpeechRecognizer(
             speech_config=self._speech_config,
@@ -142,8 +155,20 @@ class AzureSTTEngine:
 
         return recognizer
 
+    def _create_transcriber(self) -> speechsdk.transcription.ConversationTranscriber:
+        """Create a new conversation transcriber with push stream."""
+        self._create_audio_stream()
+
+        # Create conversation transcriber
+        transcriber = speechsdk.transcription.ConversationTranscriber(
+            speech_config=self._speech_config,
+            audio_config=self._audio_config,
+        )
+
+        return transcriber
+
     def _on_recognizing(self, evt: speechsdk.SpeechRecognitionEventArgs) -> None:
-        """Handle intermediate recognition results."""
+        """Handle intermediate recognition results (standard mode)."""
         if evt.result.reason == speechsdk.ResultReason.RecognizingSpeech:
             text = evt.result.text
             if text.strip():
@@ -170,7 +195,7 @@ class AzureSTTEngine:
                     )
 
     def _on_recognized(self, evt: speechsdk.SpeechRecognitionEventArgs) -> None:
-        """Handle final recognition results."""
+        """Handle final recognition results (standard mode)."""
         if evt.result.reason == speechsdk.ResultReason.RecognizedSpeech:
             text = evt.result.text
             if text.strip():
@@ -181,19 +206,7 @@ class AzureSTTEngine:
                 end_time = start_time + (duration_ticks / 10_000_000)
 
                 # Get confidence from detailed results if available
-                confidence = 0.0
-                try:
-                    json_result = evt.result.properties.get(
-                        speechsdk.PropertyId.SpeechServiceResponse_JsonResult
-                    )
-                    if json_result:
-                        import json
-                        result_data = json.loads(json_result)
-                        nbest = result_data.get("NBest", [])
-                        if nbest:
-                            confidence = nbest[0].get("Confidence", 0.0)
-                except Exception:
-                    pass
+                confidence = self._extract_confidence(evt.result)
 
                 result = TranscriptionResult(
                     text=text,
@@ -215,8 +228,131 @@ class AzureSTTEngine:
         elif evt.result.reason == speechsdk.ResultReason.NoMatch:
             logger.debug(f"No speech recognized: {evt.result.no_match_details}")
 
-    def _on_canceled(self, evt: speechsdk.SpeechRecognitionCanceledEventArgs) -> None:
-        """Handle recognition cancellation."""
+    def _on_transcribing(self, evt: speechsdk.transcription.ConversationTranscriptionEventArgs) -> None:
+        """Handle intermediate transcription results (diarization mode)."""
+        if evt.result.reason == speechsdk.ResultReason.RecognizingSpeech:
+            text = evt.result.text
+            if text.strip():
+                # Get timing info (in ticks, 100ns units)
+                offset_ticks = evt.result.offset
+                duration_ticks = evt.result.duration
+                start_time = offset_ticks / 10_000_000  # Convert to seconds
+                end_time = start_time + (duration_ticks / 10_000_000)
+
+                # Get speaker ID from ConversationTranscriptionResult
+                speaker_id = getattr(evt.result, 'speaker_id', "") or ""
+
+                # Try to get speaker ID from JSON result if not available directly
+                if not speaker_id:
+                    speaker_id = self._extract_speaker_id_from_json(evt.result)
+
+                logger.debug(f"Transcribing: text='{text[:30]}...', speaker_id='{speaker_id}'")
+
+                result = TranscriptionResult(
+                    text=text,
+                    start_time=start_time,
+                    end_time=end_time,
+                    is_partial=True,
+                    speaker_id=speaker_id,
+                    stability=0.5,  # Intermediate stability
+                    confidence=0.0,  # Not available for intermediate
+                    result_index=self._result_index,
+                )
+
+                if self._loop and self._result_queue:
+                    asyncio.run_coroutine_threadsafe(
+                        self._result_queue.put(result),
+                        self._loop,
+                    )
+
+    def _on_transcribed(self, evt: speechsdk.transcription.ConversationTranscriptionEventArgs) -> None:
+        """Handle final transcription results (diarization mode)."""
+        if evt.result.reason == speechsdk.ResultReason.RecognizedSpeech:
+            text = evt.result.text
+            if text.strip():
+                # Get timing info
+                offset_ticks = evt.result.offset
+                duration_ticks = evt.result.duration
+                start_time = offset_ticks / 10_000_000
+                end_time = start_time + (duration_ticks / 10_000_000)
+
+                # Get speaker ID from ConversationTranscriptionResult
+                speaker_id = getattr(evt.result, 'speaker_id', "") or ""
+
+                # Try to get speaker ID from JSON result if not available directly
+                if not speaker_id:
+                    speaker_id = self._extract_speaker_id_from_json(evt.result)
+
+                logger.info(f"Transcribed (final): text='{text[:50]}', speaker_id='{speaker_id}'")
+
+                # Get confidence from detailed results if available
+                confidence = self._extract_confidence(evt.result)
+
+                result = TranscriptionResult(
+                    text=text,
+                    start_time=start_time,
+                    end_time=end_time,
+                    is_partial=False,
+                    speaker_id=speaker_id,
+                    stability=1.0,  # Final result
+                    confidence=confidence,
+                    result_index=self._result_index,
+                )
+                self._result_index += 1
+
+                if self._loop and self._result_queue:
+                    asyncio.run_coroutine_threadsafe(
+                        self._result_queue.put(result),
+                        self._loop,
+                    )
+
+        elif evt.result.reason == speechsdk.ResultReason.NoMatch:
+            logger.debug(f"No speech recognized: {evt.result.no_match_details}")
+
+    def _extract_confidence(self, result) -> float:
+        """Extract confidence from recognition result."""
+        confidence = 0.0
+        try:
+            json_result = result.properties.get(
+                speechsdk.PropertyId.SpeechServiceResponse_JsonResult
+            )
+            if json_result:
+                import json
+                result_data = json.loads(json_result)
+                nbest = result_data.get("NBest", [])
+                if nbest:
+                    confidence = nbest[0].get("Confidence", 0.0)
+        except Exception:
+            pass
+        return confidence
+
+    def _extract_speaker_id_from_json(self, result) -> str:
+        """Extract speaker ID from JSON result (fallback for ConversationTranscriber)."""
+        try:
+            json_result = result.properties.get(
+                speechsdk.PropertyId.SpeechServiceResponse_JsonResult
+            )
+            if json_result:
+                import json
+                result_data = json.loads(json_result)
+                # Log the full JSON for debugging
+                logger.debug(f"JSON result: {json_result[:500]}")
+                # Try different possible locations for speaker ID
+                speaker_id = result_data.get("SpeakerId", "")
+                if not speaker_id:
+                    speaker_id = result_data.get("speakerId", "")
+                if not speaker_id:
+                    # Check in NBest results
+                    nbest = result_data.get("NBest", [])
+                    if nbest:
+                        speaker_id = nbest[0].get("SpeakerId", "") or nbest[0].get("speakerId", "")
+                return speaker_id
+        except Exception as e:
+            logger.debug(f"Error extracting speaker ID from JSON: {e}")
+        return ""
+
+    def _on_canceled(self, evt) -> None:
+        """Handle recognition/transcription cancellation."""
         if evt.reason == speechsdk.CancellationReason.Error:
             error_msg = f"Recognition error: {evt.error_details}"
             logger.error(error_msg)
@@ -243,18 +379,32 @@ class AzureSTTEngine:
     def _recognition_thread_func(self) -> None:
         """Run continuous recognition in a separate thread."""
         try:
-            # Create recognizer
-            self._recognizer = self._create_recognizer()
+            if self.enable_diarization:
+                # Use ConversationTranscriber for diarization
+                self._recognizer = self._create_transcriber()
 
-            # Connect event handlers
-            self._recognizer.recognizing.connect(self._on_recognizing)
-            self._recognizer.recognized.connect(self._on_recognized)
-            self._recognizer.canceled.connect(self._on_canceled)
-            self._recognizer.session_stopped.connect(self._on_session_stopped)
+                # Connect event handlers for diarization
+                self._recognizer.transcribing.connect(self._on_transcribing)
+                self._recognizer.transcribed.connect(self._on_transcribed)
+                self._recognizer.canceled.connect(self._on_canceled)
+                self._recognizer.session_stopped.connect(self._on_session_stopped)
 
-            # Start continuous recognition
-            self._recognizer.start_continuous_recognition()
-            logger.info("Started continuous recognition")
+                # Start continuous transcription
+                self._recognizer.start_transcribing_async().get()
+                logger.info("Started continuous transcription with diarization")
+            else:
+                # Use standard SpeechRecognizer
+                self._recognizer = self._create_recognizer()
+
+                # Connect event handlers for standard recognition
+                self._recognizer.recognizing.connect(self._on_recognizing)
+                self._recognizer.recognized.connect(self._on_recognized)
+                self._recognizer.canceled.connect(self._on_canceled)
+                self._recognizer.session_stopped.connect(self._on_session_stopped)
+
+                # Start continuous recognition
+                self._recognizer.start_continuous_recognition()
+                logger.info("Started continuous recognition")
 
             # Wait until stopped
             self._stop_event.wait()
@@ -324,10 +474,13 @@ class AzureSTTEngine:
         if self._push_stream:
             self._push_stream.close()
 
-        # Stop continuous recognition
+        # Stop continuous recognition/transcription
         if self._recognizer:
             try:
-                self._recognizer.stop_continuous_recognition()
+                if self.enable_diarization:
+                    self._recognizer.stop_transcribing_async().get()
+                else:
+                    self._recognizer.stop_continuous_recognition()
             except Exception as e:
                 logger.warning(f"Error stopping recognition: {e}")
 
@@ -372,6 +525,7 @@ def create_engine(
     language_code: str = "ja-JP",
     sample_rate: int = 16000,
     enable_punctuation: bool = True,
+    enable_diarization: bool = False,
 ) -> AzureSTTEngine:
     """
     Create and initialize an Azure STT engine.
@@ -382,6 +536,7 @@ def create_engine(
         language_code: Language code for recognition
         sample_rate: Audio sample rate in Hz
         enable_punctuation: Enable automatic punctuation
+        enable_diarization: Enable speaker diarization
 
     Returns:
         Initialized AzureSTTEngine instance
@@ -392,6 +547,7 @@ def create_engine(
         language_code=language_code,
         sample_rate=sample_rate,
         enable_punctuation=enable_punctuation,
+        enable_diarization=enable_diarization,
     )
     engine.load()
     return engine

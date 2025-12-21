@@ -65,6 +65,12 @@ def main():
         action="store_true",
         help="Disable automatic punctuation",
     )
+    parser.add_argument(
+        "--enable-diarization",
+        action="store_true",
+        default=os.environ.get("ENABLE_DIARIZATION", "false").lower() == "true",
+        help="Enable speaker diarization (default: false)",
+    )
 
     args = parser.parse_args()
 
@@ -96,12 +102,14 @@ def main():
         language_code=args.language,
         sample_rate=16000,
         enable_punctuation=enable_punctuation,
+        enable_diarization=args.enable_diarization,
     )
 
     logger.info(f"Starting Azure STT server on {args.host}:{args.port}")
     logger.info(f"Speech Region: {speech_region}")
     logger.info(f"Language: {args.language}")
     logger.info(f"Punctuation: {enable_punctuation}")
+    logger.info(f"Speaker Diarization: {args.enable_diarization}")
 
     uvicorn.run(
         app,

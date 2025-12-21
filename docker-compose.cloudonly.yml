@@ -117,10 +117,11 @@ services:
 
   # =============================================================================
   # Azure Speech-to-Text with Speaker Diarization (ConversationTranscriber)
+  # Uses the same codebase as azure-stt, with diarization enabled
   # =============================================================================
   azure-stt-diarization:
     build:
-      context: ./services/azure-stt-diarization
+      context: ./services/azure-stt
       dockerfile: Dockerfile
     expose:
       - "8000"
@@ -129,6 +130,7 @@ services:
       - AZURE_SPEECH_REGION=${AZURE_SPEECH_REGION:-japaneast}
       - LANGUAGE_CODE=ja-JP
       - ENABLE_PUNCTUATION=true
+      - ENABLE_DIARIZATION=true
     restart: unless-stopped
 
   # =============================================================================

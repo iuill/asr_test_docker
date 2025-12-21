@@ -362,13 +362,10 @@ python -m src.main --device cpu  # または --device cuda
 - **音声認識**: [Google Cloud Speech-to-Text V2 API](https://cloud.google.com/speech-to-text/v2/docs) (Streaming)
 - **特徴**: Google Cloud の新しいV2 APIを使用。Chirp 2（asia-southeast1）とChirp 3（asia-south1）モデルに対応
 
-#### azure-stt
-- **音声認識**: [Azure AI Speech SDK](https://learn.microsoft.com/azure/ai-services/speech-service/) (Streaming)
+#### azure-stt / azure-stt-diarization
+- **音声認識**: [Azure AI Speech SDK](https://learn.microsoft.com/azure/ai-services/speech-service/) (Streaming / ConversationTranscriber)
 - **特徴**: Azure AI Speech のストリーミングAPIを使用したリアルタイム音声認識（有料API）
-
-#### azure-stt-diarization
-- **音声認識**: [Azure AI Speech SDK](https://learn.microsoft.com/azure/ai-services/speech-service/) (ConversationTranscriber)
-- **特徴**: Azure AI Speech のConversationTranscriberを使用し、複数話者を自動識別（有料API）
+- **構成**: 同一コードベースから`ENABLE_DIARIZATION`環境変数で話者識別モードを切り替え
 
 #### openai-stt / openai-stt-mini
 - **音声認識**: [OpenAI Realtime API](https://platform.openai.com/docs/models/gpt-4o-transcribe) (gpt-4o-transcribe / gpt-4o-mini-transcribe)
@@ -460,21 +457,13 @@ asr_test_docker/
     │       ├── server.py        # FastAPI WebSocket サーバー
     │       ├── transcription_engine.py  # Google STT V2 ラッパー
     │       └── audio_processor.py
-    ├── azure-stt/               # Azure Speech-to-Text（バックエンド）
+    ├── azure-stt/               # Azure Speech-to-Text / 話者識別版（バックエンド）
     │   ├── Dockerfile
     │   ├── requirements.txt
     │   └── src/
     │       ├── main.py          # エントリポイント
     │       ├── server.py        # FastAPI WebSocket サーバー
-    │       ├── transcription_engine.py  # Azure Speech SDK ラッパー
-    │       └── audio_processor.py
-    ├── azure-stt-diarization/   # Azure Speech-to-Text 話者識別版（バックエンド）
-    │   ├── Dockerfile
-    │   ├── requirements.txt
-    │   └── src/
-    │       ├── main.py          # エントリポイント
-    │       ├── server.py        # FastAPI WebSocket サーバー
-    │       ├── transcription_engine.py  # ConversationTranscriber ラッパー
+    │       ├── transcription_engine.py  # Azure Speech SDK ラッパー（話者識別対応）
     │       └── audio_processor.py
     └── openai-stt/              # OpenAI gpt-4o-transcribe / gpt-4o-mini-transcribe（バックエンド）
         ├── Dockerfile

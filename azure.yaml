@@ -32,7 +32,7 @@ services:
     language: python
 
   azure-stt-diarization:
-    project: ./services/azure-stt-diarization
+    project: ./services/azure-stt
     host: containerapp
     language: python
 
