@@ -39,6 +39,7 @@
 | 文字起こし | 発話後 1-2秒以内の擬似リアルタイム表示 |
 | モデル | reazonspeech-k2-v2 / reazonspeech-espnet-v2 / reazonspeech-espnet-v2-onnx / Google Speech-to-Text V1 / Google Speech-to-Text V2 (Chirp 2/3) / Azure Speech-to-Text / Azure Speech-to-Text (話者識別) / OpenAI gpt-4o-transcribe / OpenAI gpt-4o-mini-transcribe |
 | UI | Web UI（ブラウザベース） |
+| セッション共有 | 閲覧者用画面によるリアルタイム文字起こし共有 |
 | 実行環境 | Win11 + WSL2 + Docker |
 
 ### 非機能要件
@@ -73,7 +74,8 @@
 │  │ - モデル選択 │  │  - 静的ファイル配信                │  │
 │  │ - 録音UI    │  │  - WebSocket Proxy (/ws/asr)      │  │
 │  │ - 可視化    │  │  - モデル一覧API (/api/models)     │  │
-│  │ - 結果表示  │  │  - ヘルスチェック (/health)        │  │
+│  │ - 結果表示  │  │  - セッション共有API (/api/session)│  │
+│  │ - 閲覧者画面│  │  - ヘルスチェック (/health)        │  │
 │  └─────────────┘  └───────────────────────────────────┘  │
 └────────────────────────────┬─────────────────────────────┘
                              │ WebSocket/HTTP
@@ -302,6 +304,8 @@ azd up
 
 ### 使用方法
 
+#### 基本的な使い方
+
 1. Docker コンテナを起動
 2. ブラウザで `http://localhost:13800` にアクセス
 3. 使用したいモデルを選択
@@ -313,6 +317,24 @@ azd up
 | webui | 13800 | http://localhost:13800 | 共通Web UI（モデル選択可能） |
 
 > **Note**: 各ASRモデル（k2-v2, espnet-v2, espnet-v2-onnx）は内部ネットワークでのみ動作し、Web UIからプロキシ経由でアクセスされます。
+
+#### セッション共有（閲覧者用画面）
+
+文字起こし結果をリアルタイムで他のユーザーと共有できます。
+
+**ホスト側（文字起こし実行者）:**
+1. 通常通り文字起こしを開始
+2. 画面上部の「セッション共有」パネルを開く
+3. 共有するモデルを選択し、閲覧者用パスワードを設定
+4. 「共有開始」をクリックしてセッションIDを取得
+5. セッションID（またはURL）を閲覧者に共有
+
+**閲覧者側:**
+1. 共有URLにアクセス、または `http://localhost:13800/viewer?session=<セッションID>` にアクセス
+2. 閲覧者用パスワードを入力して認証
+3. リアルタイムで文字起こし結果を閲覧
+
+> **Note**: セッションはホストが共有を停止するか、最後のアクティビティから1時間経過で自動終了します（文字起こし中はタイムアウトしません）。
 
 ### ローカル開発（Docker なし）
 
@@ -403,11 +425,13 @@ asr_test_docker/
     │   ├── pyproject.toml
     │   └── src/
     │       ├── main.py          # エントリポイント
-    │       ├── server.py        # WebSocket プロキシサーバー
+    │       ├── server.py        # WebSocket プロキシサーバー + セッション管理
     │       ├── config.py        # モデル設定
     │       └── web/
     │           ├── index.html   # モデル選択UI
-    │           └── app.js       # 動的モデル切り替え
+    │           ├── app.js       # 動的モデル切り替え + セッション共有
+    │           ├── viewer.html  # 閲覧者用画面
+    │           └── viewer.js    # 閲覧者用ロジック
     ├── k2-v2/                   # reazonspeech-k2-v2 用（バックエンド）
     │   ├── .dockerignore
     │   ├── Dockerfile           # GPU版（ベースイメージ使用）
@@ -499,6 +523,28 @@ asr_test_docker/
 
 5. **README.md**: ドキュメントを更新
    - 対応モデル表、技術スタック、プロジェクト構成
+
+### 話者識別ありサービスの追加手順
+
+話者識別（Speaker Diarization）機能を持つASRサービスを追加する場合、上記に加えて以下のファイルも更新が必要です：
+
+1. **ASRサービス側** (`services/<service-name>/src/server.py`)
+   - 文字起こし結果に `speaker_tag`（整数）または `speaker_id`（文字列）を含める
+   - 例: `{"type": "transcription", "text": "...", "speaker_tag": 1, "is_final": true}`
+
+2. **WebUI フロントエンド** (`services/webui/src/web/app.js`)
+   - `handleMessage()` で `speaker_tag` または `speaker_id` を処理
+   - 既存の Azure STT 対応コード（`speaker_id` → 整数変換）を参考に実装
+
+3. **WebUI サーバー** (`services/webui/src/server.py`)
+   - `proxy_backend_to_client_with_session()` 内で `speaker_id` → `speaker_tag` への変換
+   - 現在は Google（`speaker_tag`: 整数）と Azure（`speaker_id`: 文字列 例: "Guest_1"）に対応
+
+4. **Viewer フロントエンド** (`services/webui/src/web/viewer.js`)
+   - `handleTranscription()` で `speaker_tag` を処理
+   - `buildTranscriptionHtml()` で話者ラベルと色分け表示
+
+> **Note**: 話者識別データは `speaker_tag`（整数）として統一してブロードキャストされます。新しいサービスが異なる形式の話者IDを返す場合は、`server.py` の変換ロジックを拡張してください。
 
 ## ライセンス
 
