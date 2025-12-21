@@ -280,6 +280,26 @@ docker compose --profile cpu up webui-cpu k2-v2-cpu
 
 > **Note**: `espnet-v2-onnx` の初回起動時にESPnetモデルをONNX形式にエクスポートするため、数分かかります。2回目以降はキャッシュされたONNXモデルが使用されます。
 
+### Azure Container Apps へのデプロイ
+
+Azure Developer CLI (azd) を使用して、Azure Container Apps にデプロイできます。
+
+```powershell
+# 初回セットアップ
+azd init
+azd env set JWT_SECRET_KEY "your-jwt-secret-key"
+azd env set AUTH_USERNAME "admin"
+azd env set AUTH_PASSWORD "your-secure-password"
+azd env set AZURE_SPEECH_KEY "your-azure-speech-key"
+azd env set OPENAI_API_KEY "sk-your-openai-key"
+azd env set GOOGLE_CREDENTIALS_BASE64 "base64-encoded-json"
+
+# デプロイ
+azd up
+```
+
+詳細は [infra/README.md](infra/README.md) を参照してください。
+
 ### 使用方法
 
 1. Docker コンテナを起動
