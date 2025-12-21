@@ -29,7 +29,7 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10
       name: 'PerGB2018'
     }
     retentionInDays: retentionInDays
-    publicNetworkAccessForIngestion: 'Enabled'
+    publicNetworkAccessForIngestion: 'Disabled'
     publicNetworkAccessForQuery: 'Enabled'
   }
 }

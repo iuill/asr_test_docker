@@ -84,12 +84,6 @@ resource webuiApp 'Microsoft.App/containerApps@2024-03-01' = {
         targetPort: 8000
         transport: 'auto'
         allowInsecure: false  // HTTPSのみ
-        corsPolicy: {
-          allowedOrigins: ['*']
-          allowedMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
-          allowedHeaders: ['*']
-          allowCredentials: true
-        }
         // カスタムドメイン設定 (オプション)
         customDomains: customDomain != '' ? [
           {
