@@ -25,46 +25,140 @@ services:
     project: ./services/webui
     host: containerapp
     language: python
+    docker:
+      path: ./Dockerfile
+      context: .
+      registry: ${AZURE_CONTAINER_REGISTRY_ENDPOINT}
+      image: asr/webui
+      tag: latest
 
   azure-stt:
     project: ./services/azure-stt
     host: containerapp
     language: python
+    docker:
+      path: ./Dockerfile
+      context: .
+      registry: ${AZURE_CONTAINER_REGISTRY_ENDPOINT}
+      image: asr/azure-stt
+      tag: latest
 
   azure-stt-diarization:
     project: ./services/azure-stt
     host: containerapp
     language: python
+    docker:
+      path: ./Dockerfile
+      context: .
+      registry: ${AZURE_CONTAINER_REGISTRY_ENDPOINT}
+      image: asr/azure-stt-diarization
+      tag: latest
 
   google-stt-v1:
     project: ./services/google-stt-v1
     host: containerapp
     language: python
+    docker:
+      path: ./Dockerfile
+      context: .
+      registry: ${AZURE_CONTAINER_REGISTRY_ENDPOINT}
+      image: asr/google-stt-v1
+      tag: latest
 
   google-stt-chirp2:
     project: ./services/google-stt-v2
     host: containerapp
     language: python
+    docker:
+      path: ./Dockerfile
+      context: .
+      registry: ${AZURE_CONTAINER_REGISTRY_ENDPOINT}
+      image: asr/google-stt-chirp2
+      tag: latest
 
   google-stt-chirp3:
     project: ./services/google-stt-v2
     host: containerapp
     language: python
+    docker:
+      path: ./Dockerfile
+      context: .
+      registry: ${AZURE_CONTAINER_REGISTRY_ENDPOINT}
+      image: asr/google-stt-chirp3
+      tag: latest
 
   openai-stt:
     project: ./services/openai-stt
     host: containerapp
     language: python
+    docker:
+      path: ./Dockerfile
+      context: .
+      registry: ${AZURE_CONTAINER_REGISTRY_ENDPOINT}
+      image: asr/openai-stt
+      tag: latest
 
   openai-stt-mini:
     project: ./services/openai-stt
     host: containerapp
     language: python
+    docker:
+      path: ./Dockerfile
+      context: .
+      registry: ${AZURE_CONTAINER_REGISTRY_ENDPOINT}
+      image: asr/openai-stt-mini
+      tag: latest
+
+# ワークフローのカスタマイズ
+# provision前にACRだけ作成し、イメージをプッシュしてからContainer Appsを作成
+workflows:
+  up:
+    - azd: package --all
+    - azd: provision
+    - azd: deploy --all
 
 # フック (オプション)
 hooks:
-  # デプロイ前にイメージをビルド
-  predeploy:
+  # provision前にACRを作成してイメージをプッシュ
+  preprovision:
     shell: pwsh
     run: |
-      Write-Host "Building container images..."
+      Write-Host "Checking if ACR exists and pushing images..."
+      $envName = $env:AZURE_ENV_NAME
+      $rgName = "rg-$envName"
+
+      # ACRが存在するか確認
+      $acr = az acr list --resource-group $rgName --query "[0].name" -o tsv 2>$null
+      if ($acr) {
+        Write-Host "ACR found: $acr"
+        $acrEndpoint = az acr show --name $acr --query "loginServer" -o tsv
+
+        # ACRにログイン
+        az acr login --name $acr
+
+        # イメージをタグ付けしてプッシュ
+        $services = @(
+          @{local="asr-service-webui:latest"; remote="asr/webui:latest"},
+          @{local="asr-service-azure-stt:latest"; remote="asr/azure-stt:latest"},
+          @{local="asr-service-azure-stt-diarization:latest"; remote="asr/azure-stt-diarization:latest"},
+          @{local="asr-service-google-stt-v1:latest"; remote="asr/google-stt-v1:latest"},
+          @{local="asr-service-google-stt-chirp2:latest"; remote="asr/google-stt-chirp2:latest"},
+          @{local="asr-service-google-stt-chirp3:latest"; remote="asr/google-stt-chirp3:latest"},
+          @{local="asr-service-openai-stt:latest"; remote="asr/openai-stt:latest"},
+          @{local="asr-service-openai-stt-mini:latest"; remote="asr/openai-stt-mini:latest"}
+        )
+
+        foreach ($svc in $services) {
+          $localImage = $svc.local
+          $remoteImage = "$acrEndpoint/$($svc.remote)"
+          Write-Host "Pushing $localImage -> $remoteImage"
+          docker tag $localImage $remoteImage 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            docker push $remoteImage
+          } else {
+            Write-Host "Local image $localImage not found, skipping..."
+          }
+        }
+      } else {
+        Write-Host "ACR not found yet, will be created during provision"
+      }
